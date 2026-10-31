@@ -134,6 +134,14 @@ input.t:not([type=date]),textarea,.pt .d,.pt .k,#sub{text-transform:uppercase}
 #ex{color:var(--bad);border-color:var(--bad);margin-left:8px}
 #bye{position:fixed;inset:0;z-index:90;background:#000;display:none;align-items:center;justify-content:center;text-align:center;padding:30px;font-size:19px}#bye.on{display:flex}#bye b{font-size:26px;color:var(--ok)}#bye p{margin:14px 0 22px}
 #msg{position:fixed;inset:0;z-index:90;background:#000;display:none;align-items:center;justify-content:center;padding:26px;font-size:17px;line-height:1.6}#msg.on{display:flex}#msg>div{max-width:520px;width:100%}#msg b#msgt{font-size:22px;color:var(--am);display:block;margin-bottom:12px}#msgb{margin-bottom:20px}
+@media (orientation:landscape){
+body.plv #app{padding-top:calc(env(safe-area-inset-top) + 4px);padding-bottom:calc(60px + env(safe-area-inset-bottom))}
+body.plv .top{display:none}
+body.plv .tw{max-height:calc(100vh - 150px)}
+body.plv .tabs{padding:4px 12px calc(4px + env(safe-area-inset-bottom))}
+body.plv .tabs>div{padding:3px}
+body.plv .tabs button{flex-direction:row;justify-content:center;gap:7px;padding:6px 2px}
+}
 </style></head><body>
 <div id="app">
  <div class="top"><div class="brand"><div class="logo" id="lg"></div><div><b>DCVG Campo Pro</b><small id="sub">Inspección</small></div></div><div class="tc"><div class="chip" id="sv"><i class="dot"></i><span>Listo</span></div><div class="chip" id="gt"><i class="dot"></i><span>GPS…</span></div></div><button class="x" id="ex" aria-label="Salir"></button></div>
@@ -244,7 +252,7 @@ function up(t){const a=t.selectionStart,b=t.selectionEnd,v=t.value.toUpperCase()
 function upAll(){['empresa','proyecto','diametro','lugar_ini','lugar_fin','sector_tramo','ubicacion','sector','titulo_dcvg','titulo_log'].forEach(k=>{if(typeof E.meta[k]==='string')E.meta[k]=E.meta[k].toUpperCase()});E.pts.forEach(p=>{['desc','nota'].forEach(k=>{if(typeof p[k]==='string')p[k]=p[k].toUpperCase()})})}
 function noAuto(){document.querySelectorAll('input:not([type=checkbox]),textarea').forEach(e=>{e.setAttribute('autocomplete','off');e.setAttribute('autocorrect','off');e.setAttribute('spellcheck','false')})}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const VER='v9-2026-10-31';
+const VER='v10-2026-10-31';
 let E=null,PH={},D=null,EDIT=null,ADDED=[],REMOVED=[],stopGPS=null,VIEW='rec';
 
 /* ---------- almacenamiento local (IndexedDB) ---------- */
@@ -271,7 +279,7 @@ const TABS=[['rec','list','Recorrido'],['cab','sl','Cabecera'],['pla','tbl','Pla
 function ir(v){VIEW=v;document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));render();scrollTo(0,0)}
 function renderTabs(){$('tabs').innerHTML=TABS.map(t=>'<button data-v="'+t[0]+'" class="'+(VIEW===t[0]?'on':'')+'">'+ic(t[1])+t[2]+'</button>').join('')}
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(b)ir(b.dataset.v)};
-function render(){$('app').classList.toggle('wide',VIEW==='pla');renderTabs();({rec:rRec,cab:rCab,pla:rPla,dat:rDat})[VIEW]();noAuto();const m=E.meta;$('sub').textContent=[m.empresa,m.proyecto].filter(Boolean).join(' · ')||'Inspección DCVG'}
+function render(){$('app').classList.toggle('wide',VIEW==='pla');document.body.classList.toggle('plv',VIEW==='pla');renderTabs();({rec:rRec,cab:rCab,pla:rPla,dat:rDat})[VIEW]();noAuto();const m=E.meta;$('sub').textContent=[m.empresa,m.proyecto].filter(Boolean).join(' · ')||'Inspección DCVG'}
 
 /* ---------- RECORRIDO ---------- */
 const tiene=t=>E.pts.some(p=>p.tipo===t);
@@ -313,14 +321,14 @@ $('v-cab').addEventListener('change',e=>{const t=e.target;if(t.dataset.p){E.meta
 
 /* ---------- PLANILLA (vista previa idéntica a lo que se exporta) ---------- */
 const HD=['ÍTEM','DESCRIPCIÓN','PK','ON','OFF','ΔP','T.REM','TOTAL','N','S','E','O','OL/RE','A/C ON','A/C OFF','P/RE','% IR','LATITUD','LONGITUD','LAT GMS','LON GMS','R 1M','R 2M','R 3M','ρa 1M','ρ 0-1M','ρa 2M','ρ 1-2M','ρa 3M','ρ 2-3M'];
-let PZ=null,PO=false;
-function rPla(){const o=construirPlanilla(E,false);let h='<div id="hzw"><div class="card" style="padding:10px"><div class="zb"><b style="font-size:14px">'+ic('tbl').replace('class="ic"','class="ic" style="vertical-align:-4px"')+' Planilla · '+(o.total_filas-8)+' filas</b><span><button data-z="-">−</button> <button data-z="f">Ajustar</button> <button data-z="+">+</button> <button data-z="o">'+(PO?'Vertical':'Horizontal')+'</button></span></div>'+(calcular(E.pts,E.meta).nota?'<div class="hint" style="margin:0 0 8px;color:var(--am)">'+esc(calcular(E.pts,E.meta).nota)+'</div>':'')+'<div class="tw" id="tw"><div class="sp" id="sp"><div class="tin" id="tin"><table id="tb"><tr>'+HD.map(x=>'<th>'+x+'</th>').join('')+'</tr>';
+let PZ=null;const PO=false;
+function rPla(){const o=construirPlanilla(E,false);let h='<div id="hzw"><div class="card" style="padding:10px"><div class="zb"><b style="font-size:14px">'+ic('tbl').replace('class="ic"','class="ic" style="vertical-align:-4px"')+' Planilla · '+(o.total_filas-8)+' filas</b><span><button data-z="-">−</button> <button data-z="f">Ajustar</button> <button data-z="+">+</button></span></div>'+(calcular(E.pts,E.meta).nota?'<div class="hint" style="margin:0 0 8px;color:var(--am)">'+esc(calcular(E.pts,E.meta).nota)+'</div>':'')+'<div class="tw" id="tw"><div class="sp" id="sp"><div class="tin" id="tin"><table id="tb"><tr>'+HD.map(x=>'<th>'+x+'</th>').join('')+'</tr>';
  const rows={};o.celdas.forEach(c=>{if(c.fila>=8)(rows[c.fila]=rows[c.fila]||[])[c.col]=c});
  Object.keys(rows).forEach(f=>{h+='<tr>'+rows[f].map((c,i)=>'<td'+(i===1?' class="l"':'')+' style="background:'+c.color_fondo+'">'+esc(c.texto)+'</td>').join('')+'</tr>'});
- $('v-pla').innerHTML=h+'</table></div></div></div></div></div>';$('v-pla').classList.toggle('hz',PO);fitPla()}
+ $('v-pla').innerHTML=h+'</table></div></div></div></div></div>';fitPla()}
 function layoutH(){const z=$('hzw');if(!z)return;if(!PO){z.removeAttribute('style');$('tw').style.maxHeight='';return}const W=innerWidth,H=innerHeight,por=H>W,a=por?H:W,b=por?W:H;z.style.cssText='position:absolute;top:0;left:0;width:'+a+'px;height:'+b+'px;padding:8px;box-sizing:border-box;overflow:hidden;transform-origin:0 0;transform:'+(por?'translateX('+W+'px) rotate(90deg)':'none');$('tw').style.maxHeight=(b-80)+'px'}
 function fitPla(){const w=$('tw'),t=$('tb');if(!w||!t||VIEW!=='pla')return;layoutH();const nat=t.offsetWidth,hh=t.offsetHeight;if(!nat)return;const fit=Math.min(w.clientWidth/nat,1.8),s=PZ==null?fit:PZ;$('tin').style.transform='scale('+s+')';$('sp').style.width=nat*s+'px';$('sp').style.height=hh*s+'px'}
-$('v-pla').onclick=e=>{const b=e.target.closest('[data-z]');if(!b)return;if(b.dataset.z==='o'){PO=!PO;PZ=null;rPla();return}const w=$('tw'),t=$('tb'),fit=Math.min(w.clientWidth/t.offsetWidth,1.8),cur=PZ==null?fit:PZ;if(b.dataset.z==='f')PZ=null;else PZ=Math.max(.15,Math.min(3,cur*(b.dataset.z==='+'?1.3:1/1.3)));fitPla()};
+$('v-pla').onclick=e=>{const b=e.target.closest('[data-z]');if(!b)return;const w=$('tw'),t=$('tb'),fit=Math.min(w.clientWidth/t.offsetWidth,1.8),cur=PZ==null?fit:PZ;if(b.dataset.z==='f')PZ=null;else PZ=Math.max(.15,Math.min(3,cur*(b.dataset.z==='+'?1.3:1/1.3)));fitPla()};
 addEventListener('resize',()=>{if(PZ==null||PO)fitPla()});
 /* ---------- DATOS: exportar / importar ---------- */
 function revisar(){const L=[],rows=calcular(E.pts,E.meta),P=E.pts;
