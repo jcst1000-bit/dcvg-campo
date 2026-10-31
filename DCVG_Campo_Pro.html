@@ -131,9 +131,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac);box-shadow:0 0 0 
 #v-pla.hz{position:fixed;inset:0;z-index:50;background:#000;animation:none!important;overflow:hidden}
 html,body{overscroll-behavior:none;-webkit-touch-callout:none}
 input.t:not([type=date]),textarea,.pt .d,.pt .k,#sub{text-transform:uppercase}
+#ex{color:var(--bad);border-color:var(--bad);margin-left:8px}
+#bye{position:fixed;inset:0;z-index:90;background:#000;display:none;align-items:center;justify-content:center;text-align:center;padding:30px;font-size:19px}#bye.on{display:flex}#bye b{font-size:26px;color:var(--ok)}#bye p{margin:14px 0 22px}
 </style></head><body>
 <div id="app">
- <div class="top"><div class="brand"><div class="logo" id="lg"></div><div><b>DCVG Campo Pro</b><small id="sub">Inspección</small></div></div><div class="tc"><div class="chip" id="sv"><i class="dot"></i><span>Listo</span></div><div class="chip" id="gt"><i class="dot"></i><span>GPS…</span></div></div></div>
+ <div class="top"><div class="brand"><div class="logo" id="lg"></div><div><b>DCVG Campo Pro</b><small id="sub">Inspección</small></div></div><div class="tc"><div class="chip" id="sv"><i class="dot"></i><span>Listo</span></div><div class="chip" id="gt"><i class="dot"></i><span>GPS…</span></div></div><button class="x" id="ex" aria-label="Salir"></button></div>
  <section class="view on" id="v-rec"></section>
  <section class="view" id="v-cab"></section>
  <section class="view" id="v-pla"></section>
@@ -142,6 +144,7 @@ input.t:not([type=date]),textarea,.pt .d,.pt .k,#sub{text-transform:uppercase}
 <div class="tabs"><div id="tabs"></div></div>
 <div class="sheet" id="sheet"><div class="sh-h"><button class="x" id="sx"></button><b id="st">Punto</b><span class="chip" id="gp"><i class="dot"></i><span>GPS</span></span></div><div class="sh-b" id="sb"></div><div class="sh-f"><div id="sf"></div></div></div>
 <div class="lb2" id="lb"><button class="x" id="lbx"></button><img id="lbi" alt=""></div>
+<div id="bye"><div><b>DATOS GUARDADOS</b><p>Ya puede cerrar la aplicación: deslice hacia arriba y quítela de las apps recientes.</p><button class="btn pri" id="byeb">Volver a la app</button></div></div>
 <div id="toast"></div>
 <input type="file" id="fCam" accept="image/*" capture="environment" hidden>
 <input type="file" id="fGal" accept="image/*" multiple hidden>
@@ -218,6 +221,7 @@ function desdePlanilla(o){const g={};o.celdas.forEach(c=>{g[c.fila+','+c.col]=c.
 //#CORE-END
 
 const ICONS={cam:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',plus:'<path d="M12 5v14M5 12h14"/>',x:'<path d="M18 6 6 18M6 6l12 12"/>',trash:'<path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/>',share:'<path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M16 6l-4-4-4 4M12 2v14"/>',down:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',up:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',check:'<path d="M20 6 9 17l-5-5"/>',list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',tbl:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>',db:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.7-4 3-9 3s-9-1.3-9-3M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/>',gps:'<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',warn:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/>',bolt:'<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>',sl:'<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',img:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',pin:'<path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',play:'<path d="m6 4 14 8-14 8z"/>'};
+ICONS.power='<path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0"/>';
 const ic=n=>'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+ICONS[n]+'</svg>';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const $=i=>document.getElementById(i);
@@ -317,24 +321,25 @@ let INC=true;
 function rDat(){preparar();let us='';const L=revisar();
  $('v-dat').innerHTML='<div class="card"><h3>'+ic('share')+'Exportar</h3>'+L.map(x=>'<div class="ck '+x[0]+'">'+ic(x[0]==='ok'?'check':'warn')+'<div>'+x[1]+'</div></div>').join('')
  +'<div class="sw" style="margin-top:6px"><span>Incluir fotos y datos de campo<small>Permite reanudar la inspección al importar. Apagado = solo la planilla.</small></span><input type="checkbox" class="tg" id="inc" '+(INC?'checked':'')+'></div>'
- +'<div style="height:6px"></div><button class="btn pri" data-d="share">'+ic('share')+'Compartir archivo (WhatsApp, Bluetooth, correo)</button><div style="height:8px"></div><button class="btn" data-d="down">'+ic('down')+'Descargar archivo</button><div class="hint" id="xi"></div></div>'
+ +'<div style="height:6px"></div><button class="btn pri" data-d="share">'+ic('share')+'Compartir archivo (WhatsApp, Bluetooth, correo)</button><div style="height:8px"></div><div class="g2"><button class="btn sm" style="width:100%" data-d="sh-txt">Compartir .txt</button><button class="btn sm" style="width:100%" data-d="sh-lite">Sin fotos</button></div><div style="height:8px"></div><button class="btn" data-d="down">'+ic('down')+'Descargar archivo</button><div class="hint" id="xi"></div></div>'
  +'<div class="card"><h3>'+ic('up')+'Importar / continuar</h3><button class="btn" data-d="imp">'+ic('up')+'Cargar archivo .json</button><label>…o pegue el texto recibido</label><textarea id="pas" rows="3" placeholder="Pegue aquí el JSON"></textarea><div style="height:8px"></div><button class="btn sm" data-d="pimp">Importar texto pegado</button><div class="hint">Acepta el archivo creado por esta app (recupera todo, incluidas las fotos) o la planilla DCVG en el mismo formato de su proyecto.</div></div>'
  +'<div class="card"><h3>'+ic('play')+'Nueva inspección</h3><button class="btn am" data-d="nueva">'+ic('plus')+'Crear nueva inspección</button><div class="hint">Borra puntos, fotos y cabecera para empezar de cero. Exporte antes.</div></div>'
  +'<div class="card"><h3>'+ic('db')+'Almacenamiento</h3><div class="ck ok">'+ic('check')+'<div>Guardado automático en este equipo, sin internet.</div></div><div id="est" class="hint"></div><div class="bar"><i id="estb" style="width:0"></i></div><div style="height:14px"></div><button class="btn bad" data-d="clr">'+ic('trash')+'Borrar toda la inspección</button></div>';
  if(navigator.storage&&navigator.storage.estimate)navigator.storage.estimate().then(s=>{const e=$('est');if(!e)return;e.textContent='Usado '+(s.usage/1048576).toFixed(1)+' MB de '+Math.round(s.quota/1048576)+' MB disponibles';$('estb').style.width=Math.min(100,s.usage/s.quota*100)+'%'})}
-async function generar(){const o=construirPlanilla(E,true);
- if(INC)o.campo={formato:'dcvg_campo',version:4,exportado:new Date().toISOString(),meta:E.meta,puntos:ordenar(E.pts).map(p=>Object.assign({},p,{fotos:p.fotos.map((id,i)=>{const d=PH[id]?PH[id].data:'';return{id:id,archivo:nomFoto(p,i),mime:'image/jpeg',fecha:PH[id]?new Date(PH[id].t).toISOString():'',data:d.split(',')[1]||''}})}))};
- const txt=JSON.stringify(o,null,4),f=(E.meta.fecha||hoy()).split('/').reverse().join('-');return{txt:txt,nom:'DCVG_'+(slug(E.meta.empresa)||'campo')+'_'+f+'.json'}}
+async function generar(SF){const o=construirPlanilla(E,true);
+ if(INC)o.campo={formato:'dcvg_campo',version:4,exportado:new Date().toISOString(),meta:E.meta,puntos:ordenar(E.pts).map(p=>Object.assign({},p,{fotos:p.fotos.map((id,i)=>{const d=SF||!PH[id]?'':PH[id].data;return{id:id,archivo:nomFoto(p,i),mime:'image/jpeg',fecha:PH[id]?new Date(PH[id].t).toISOString():'',data:d.split(',')[1]||''}})}))};
+ const txt=JSON.stringify(o,null,4),f=(E.meta.fecha||hoy()).split('/').reverse().join('-');return{txt:txt,nom:'DCVG_'+(slug(E.meta.empresa)||'campo')+'_'+f+(SF?'_SINFOTOS':'')+'.json'}}
 function bajar(g){const b=new Blob([g.txt],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=g.nom;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href)},2000)}
-let PRE=null;
-async function preparar(){PRE=null;try{PRE=await generar()}catch(e){PRE=null}}
-function shareYa(){if(!PRE){toast('Preparando el archivo… toque de nuevo en unos segundos',3500);preparar();return}
- const g=PRE,mk=(n,t)=>new File([g.txt],n,{type:t}),L=[mk(g.nom,'application/json'),mk(g.nom,'text/plain'),mk(g.nom.replace(/\.json$/,'.txt'),'text/plain')];
+let PRE=null,PRE2=null;
+async function preparar(){PRE=null;PRE2=null;try{PRE=await generar();PRE2=await generar(true)}catch(e){}}
+function shareYa(m){const g=m==='sh-lite'?PRE2:PRE;
+ if(!g){toast('Preparando el archivo… toque de nuevo en unos segundos',3500);preparar();return}
+ const tx=g.nom.replace(/\.json$/,'.txt'),mk=(n,t)=>new File([g.txt],n,{type:t}),L=m==='share'?[mk(g.nom,'application/json'),mk(tx,'text/plain')]:[mk(tx,'text/plain')];
  const f=L.find(x=>!navigator.canShare||navigator.canShare({files:[x]}));
  if(!f){bajar(g);toast('Este equipo no permite compartir directo: se descargó el archivo',4500);return}
- navigator.share({files:[f],title:f.name,text:'Inspección DCVG'}).catch(e=>{if(e&&e.name==='AbortError')return;toast('No se pudo abrir Compartir: '+((e&&e.name)||'error'),4000)})}
+ navigator.share({files:[f]}).catch(e=>{if(e&&e.name==='AbortError')return;toast('El equipo bloqueó Compartir ('+((e&&e.name)||'error')+'). Pruebe los botones .txt o Sin fotos',6000)})}
 async function accionDatos(a){
- if(a==='share'){if(!E.pts.length){toast('No hay puntos para exportar');return}if(navigator.share)return shareYa()}
+ if(a==='sh-txt'||a==='sh-lite'||a==='share'){if(!E.pts.length){toast('No hay puntos para exportar');return}if(navigator.share)return shareYa(a);if(a!=='share')a='down'}
  if(a==='share'||a==='down'){if(!E.pts.length){toast('No hay puntos para exportar');return}const g=await generar();$('xi').textContent=g.nom+' · '+(g.txt.length/1048576).toFixed(2)+' MB';
   if(a==='down'){bajar(g);toast('Archivo descargado');return}
   for(const ty of['application/json','text/plain']){try{const f=new File([g.txt],g.nom,{type:ty});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:g.nom,text:'Inspección DCVG'});return}}catch(e){if(e&&e.name==='AbortError')return}}
@@ -408,7 +413,7 @@ $('sb').addEventListener('click',e=>{const b=e.target.closest('button,img');if(!
  else if(b.dataset.f==='cam')$('fCam').click();else if(b.dataset.f==='gal')$('fGal').click();else if(b.dataset.f==='gps'){D.gpsManual=false;if(!aplicarFix())toast(GPSERR===1?'Permiso de ubicación denegado: actívelo en el navegador':'Aún sin señal GPS')}
  else if(b.dataset.fd){const id=b.dataset.fd;D.fotos=D.fotos.filter(x=>x!==id);if(ADDED.includes(id)){ADDED=ADDED.filter(x=>x!==id);borrarFoto(id)}else REMOVED.push(id);fotos();guardarBorrador()}
  else if(b.dataset.lb){$('lbi').src=PH[b.dataset.lb].data;$('lb').classList.add('on')}});
-$('lbx').innerHTML=ic('x');$('lb').onclick=()=>$('lb').classList.remove('on');$('sx').innerHTML=ic('x');$('lg').innerHTML=ic('bolt');
+$('lbx').innerHTML=ic('x');$('lb').onclick=()=>$('lb').classList.remove('on');$('sx').innerHTML=ic('x');$('lg').innerHTML=ic('bolt');$('ex').innerHTML=ic('power');$('ex').onclick=async()=>{if(!confirm('¿Salir de la app?\nSus datos quedan guardados.'))return;await flush();try{window.close()}catch(e){}setTimeout(()=>$('bye').classList.add('on'),400)};$('byeb').onclick=()=>$('bye').classList.remove('on');
 async function borrarFoto(id){delete PH[id];try{await DB.del('fotos',id)}catch(e){}}
 async function cerrarEd(guardado){if(!guardado){for(const id of ADDED)await borrarFoto(id)}else{for(const id of REMOVED)await borrarFoto(id)}
  ADDED=[];REMOVED=[];D=null;EDIT=null;try{await DB.del('kv','borrador')}catch(e){}$('sheet').classList.remove('on');render()}
