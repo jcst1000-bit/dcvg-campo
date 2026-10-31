@@ -239,8 +239,9 @@ const DB={db:null,ok:false,
  async all(s){if(!DB.ok)return[];const k=await DB.rq(DB.st(s,'readonly').getAllKeys()),v=await DB.rq(DB.st(s,'readonly').getAll());return k.map((x,i)=>[x,v[i]])}};
 let tm=null;
 function setSave(s){const e=$('sv');e.className='chip '+(s==='ok'?'ok':s==='err'?'bad':'am');e.querySelector('span').textContent=s==='ok'?'Guardado '+new Date().toTimeString().slice(0,8):s==='err'?'Error al guardar':'Guardando…'}
-function persist(){setSave('…');clearTimeout(tm);tm=setTimeout(flush,300)}
-async function flush(){clearTimeout(tm);let ok=false;try{await DB.put('kv','estado',E);ok=true}catch(e){}try{localStorage.setItem('dcvg_estado_v4',JSON.stringify(E));ok=true}catch(e){}setSave(ok?'ok':'err')}
+function saveSync(){try{E._ts=Date.now();localStorage.setItem('dcvg_estado_v4',JSON.stringify(E));if(E.pts.length)localStorage.setItem('dcvg_respaldo',JSON.stringify(E));return true}catch(e){return false}}
+function persist(){setSave('…');saveSync();clearTimeout(tm);tm=setTimeout(flush,300)}
+async function flush(){clearTimeout(tm);let ok=saveSync();try{await DB.put('kv','estado',E);ok=true}catch(e){}setSave(ok?'ok':'err')}
 addEventListener('pagehide',flush);document.addEventListener('visibilitychange',()=>{if(document.hidden)flush()});
 function toast(t,ms){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),ms||2200)}
 const vib=n=>{try{navigator.vibrate&&navigator.vibrate(n||12)}catch(e){}};
@@ -428,7 +429,8 @@ $('fCam').onchange=foto;$('fGal').onchange=foto;
 (async function(){
  const ok=await DB.open();let s=null;
  if(ok){try{s=await DB.get('kv','estado');(await DB.all('fotos')).forEach(f=>{PH[f[0]]=f[1]})}catch(e){}}
- if(!s){try{const l=localStorage.getItem('dcvg_estado_v4');if(l)s=JSON.parse(l)}catch(e){}}
+ try{const l=JSON.parse(localStorage.getItem('dcvg_estado_v4')||'null');if(l&&l.pts&&(!s||(l._ts||0)>(s._ts||0)))s=l}catch(e){}
+ try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
  E=s||{v:4,meta:defMeta(),pts:[]};E.meta=Object.assign(defMeta(),E.meta);E.pts.forEach(p=>{p.fotos=p.fotos||[]});upAll();
  if(E.pts.some(p=>p.tipo==='fin'))await limpiarTodo();
  if(!ok)toast('Aviso: este navegador no permite guardar fotos en el equipo',4500);
