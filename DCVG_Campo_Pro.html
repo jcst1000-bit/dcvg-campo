@@ -225,10 +225,24 @@ ICONS.power='<path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0"/>';
 const ic=n=>'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+ICONS[n]+'</svg>';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const $=i=>document.getElementById(i);
+let IP=null;
+const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const esIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const enApp=()=>/FBAN|FBAV|Instagram|Line\/|; wv\)|WhatsApp|Messenger|Twitter/i.test(navigator.userAgent)||(esIOS()&&!/Safari/.test(navigator.userAgent));
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();IP=e;if(E&&VIEW==='rec')rRec();if(E&&VIEW==='dat')rDat()});
+addEventListener('appinstalled',()=>{IP=null;try{localStorage.setItem('dcvg_inst_oculto','1')}catch(e){}if(E)render()});
+async function instalar(){if(IP){IP.prompt();try{await IP.userChoice}catch(e){}IP=null;render()}else toast('Use el menú del navegador: Instalar aplicación',5000)}
+function instBanner(f){let o=null;try{o=localStorage.getItem('dcvg_inst_oculto')}catch(e){}if(standalone()||(!f&&o))return'';let t;
+ if(enApp())t='<b>Abra este link en '+(esIOS()?'Safari':'Chrome')+'.</b> Desde WhatsApp, Facebook u otra app no se puede instalar. Toque el menú (⋮ o los tres puntos) y elija <b>Abrir en el navegador</b>.';
+ else if(IP)t='Instálela para abrirla como aplicación: sin barra del navegador y sin internet.';
+ else if(esIOS())t='<b>iPhone / iPad (Safari):</b><br>1. Toque <b>Compartir</b> (cuadrado con flecha hacia arriba).<br>2. Deslice y toque <b>Agregar a pantalla de inicio</b>.<br>3. Toque <b>Agregar</b>.';
+ else t='<b>Android (Chrome):</b><br>1. Toque el menú <b>⋮</b> (arriba a la derecha).<br>2. Toque <b>Instalar aplicación</b> o <b>Agregar a la pantalla principal</b>.<br>3. Toque <b>Instalar</b>.';
+ return '<div class="card" style="border-color:var(--am)"><h3 style="color:var(--am)">'+ic('down')+'Instalar como aplicación</h3><div style="font-size:15px;line-height:1.55">'+t+'</div>'+(IP&&!enApp()?'<div style="height:10px"></div><button class="btn am" data-a="inst" data-d="inst">'+ic('down')+'INSTALAR APP</button>':'')+(f?'':'<div style="height:8px"></div><button class="btn sm" style="width:100%" data-a="hideinst" data-d="hideinst">Ya la instalé / ocultar</button>')+'</div>'}
 function up(t){const a=t.selectionStart,b=t.selectionEnd,v=t.value.toUpperCase();if(v!==t.value){t.value=v;try{t.setSelectionRange(a,b)}catch(e){}}}
 function upAll(){['empresa','proyecto','diametro','lugar_ini','lugar_fin','sector_tramo','ubicacion','sector','titulo_dcvg','titulo_log'].forEach(k=>{if(typeof E.meta[k]==='string')E.meta[k]=E.meta[k].toUpperCase()});E.pts.forEach(p=>{['desc','nota'].forEach(k=>{if(typeof p[k]==='string')p[k]=p[k].toUpperCase()})})}
 function noAuto(){document.querySelectorAll('input:not([type=checkbox]),textarea').forEach(e=>{e.setAttribute('autocomplete','off');e.setAttribute('autocorrect','off');e.setAttribute('spellcheck','false')})}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const VER='v8-2026-10-31';
 let E=null,PH={},D=null,EDIT=null,ADDED=[],REMOVED=[],stopGPS=null,VIEW='rec';
 
 /* ---------- almacenamiento local (IndexedDB) ---------- */
@@ -277,8 +291,8 @@ function rRec(){const ini=tiene('inicio'),fin=tiene('fin'),rows=calcular(E.pts,E
   if(p.lat!==''&&p.lat!=null)b+='<span class="chip ok">'+ic('pin').replace('class="ic"','class="ic" style="width:12px;height:12px"')+'GPS</span>';
   const th=p.fotos.length&&PH[p.fotos[0]]?'<img class="th" src="'+PH[p.fotos[0]].data+'" alt="">':'<div class="th">'+ic('cam')+'</div>';
   h+='<div class="pt" data-a="edit" data-id="'+p.id+'" style="--c:'+T.c+'"><div class="m"><div class="tag">'+T.n+'</div><div><span class="k">PK '+pkTxt(p.pk)+'</span> <span style="color:var(--mu);font-size:13px">'+esc(p.pk)+' m</span></div><div class="d">'+esc(p.desc)+'</div><div class="bd">'+b+'</div></div>'+th+(p.fotos.length>1?'<span class="chip" style="position:absolute;right:8px;bottom:8px;padding:2px 7px">+'+(p.fotos.length-1)+'</span>':'')+'</div>'});
- $('v-rec').innerHTML=h}
-$('v-rec').onclick=e=>{const b=e.target.closest('[data-a]');if(!b)return;if(b.dataset.a==='cancel')cancelarInsp();else if(b.dataset.a==='nueva')nueva();else if(b.dataset.a==='nuevo')abrir(b.dataset.t,null);else if(b.dataset.a==='edit')abrir(null,b.dataset.id)};
+ $('v-rec').innerHTML=instBanner()+h}
+$('v-rec').onclick=e=>{const b=e.target.closest('[data-a]');if(!b)return;if(b.dataset.a==='inst')instalar();else if(b.dataset.a==='hideinst'){try{localStorage.setItem('dcvg_inst_oculto','1')}catch(e){}rRec()}else if(b.dataset.a==='cancel')cancelarInsp();else if(b.dataset.a==='nueva')nueva();else if(b.dataset.a==='nuevo')abrir(b.dataset.t,null);else if(b.dataset.a==='edit')abrir(null,b.dataset.id)};
 
 /* ---------- CABECERA ---------- */
 const iso=d=>{const m=/^(\d\d)\/(\d\d)\/(\d{4})$/.exec(d||'');return m?m[3]+'-'+m[2]+'-'+m[1]:''};
@@ -319,12 +333,12 @@ const slug=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').repl
 const nomFoto=(p,i)=>'PK'+pkTxt(p.pk).replace('+','_')+'_'+(slug(p.desc)||p.tipo)+'_'+(i+1)+'.jpg';
 let INC=true;
 function rDat(){preparar();let us='';const L=revisar();
- $('v-dat').innerHTML='<div class="card"><h3>'+ic('share')+'Exportar</h3>'+L.map(x=>'<div class="ck '+x[0]+'">'+ic(x[0]==='ok'?'check':'warn')+'<div>'+x[1]+'</div></div>').join('')
+ $('v-dat').innerHTML=instBanner(true)+'<div class="card"><h3>'+ic('share')+'Exportar</h3>'+L.map(x=>'<div class="ck '+x[0]+'">'+ic(x[0]==='ok'?'check':'warn')+'<div>'+x[1]+'</div></div>').join('')
  +'<div class="sw" style="margin-top:6px"><span>Incluir fotos y datos de campo<small>Permite reanudar la inspección al importar. Apagado = solo la planilla.</small></span><input type="checkbox" class="tg" id="inc" '+(INC?'checked':'')+'></div>'
  +'<div style="height:6px"></div><button class="btn pri" data-d="share">'+ic('share')+'Compartir archivo (WhatsApp, Bluetooth, correo)</button><div style="height:8px"></div><div class="g2"><button class="btn sm" style="width:100%" data-d="sh-txt">Compartir .txt</button><button class="btn sm" style="width:100%" data-d="sh-lite">Sin fotos</button></div><div style="height:8px"></div><button class="btn" data-d="down">'+ic('down')+'Descargar archivo</button><div class="hint" id="xi"></div></div>'
  +'<div class="card"><h3>'+ic('up')+'Importar / continuar</h3><button class="btn" data-d="imp">'+ic('up')+'Cargar archivo .json</button><label>…o pegue el texto recibido</label><textarea id="pas" rows="3" placeholder="Pegue aquí el JSON"></textarea><div style="height:8px"></div><button class="btn sm" data-d="pimp">Importar texto pegado</button><div class="hint">Acepta el archivo creado por esta app (recupera todo, incluidas las fotos) o la planilla DCVG en el mismo formato de su proyecto.</div></div>'
  +'<div class="card"><h3>'+ic('play')+'Nueva inspección</h3><button class="btn am" data-d="nueva">'+ic('plus')+'Crear nueva inspección</button><div class="hint">Borra puntos, fotos y cabecera para empezar de cero. Exporte antes.</div></div>'
- +'<div class="card"><h3>'+ic('db')+'Almacenamiento</h3><div class="ck ok">'+ic('check')+'<div>Guardado automático en este equipo, sin internet.</div></div><div id="est" class="hint"></div><div class="bar"><i id="estb" style="width:0"></i></div><div style="height:14px"></div><button class="btn bad" data-d="clr">'+ic('trash')+'Borrar toda la inspección</button></div>';
+ +'<div class="card"><h3>'+ic('db')+'Almacenamiento</h3><div class="ck ok">'+ic('check')+'<div>Versión de la app: <b>'+VER+'</b></div></div><button class="btn sm" style="width:100%;margin-bottom:10px" data-d="upd">'+ic('down')+'Buscar actualización</button><div class="ck ok">'+ic('check')+'<div>Guardado automático en este equipo, sin internet.</div></div><div id="est" class="hint"></div><div class="bar"><i id="estb" style="width:0"></i></div><div style="height:14px"></div><button class="btn bad" data-d="clr">'+ic('trash')+'Borrar toda la inspección</button></div>';
  if(navigator.storage&&navigator.storage.estimate)navigator.storage.estimate().then(s=>{const e=$('est');if(!e)return;e.textContent='Usado '+(s.usage/1048576).toFixed(1)+' MB de '+Math.round(s.quota/1048576)+' MB disponibles';$('estb').style.width=Math.min(100,s.usage/s.quota*100)+'%'})}
 async function generar(SF){const o=construirPlanilla(E,true);
  if(INC)o.campo={formato:'dcvg_campo',version:4,exportado:new Date().toISOString(),meta:E.meta,puntos:ordenar(E.pts).map(p=>Object.assign({},p,{fotos:p.fotos.map((id,i)=>{const d=SF||!PH[id]?'':PH[id].data;return{id:id,archivo:nomFoto(p,i),mime:'image/jpeg',fecha:PH[id]?new Date(PH[id].t).toISOString():'',data:d.split(',')[1]||''}})}))};
@@ -339,6 +353,8 @@ function shareYa(m){const g=m==='sh-lite'?PRE2:PRE;
  if(!f){bajar(g);toast('Este equipo no permite compartir directo: se descargó el archivo',4500);return}
  navigator.share({files:[f]}).catch(e=>{if(e&&e.name==='AbortError')return;toast('El equipo bloqueó Compartir ('+((e&&e.name)||'error')+'). Pruebe los botones .txt o Sin fotos',6000)})}
 async function accionDatos(a){
+ if(a==='inst')return instalar();if(a==='hideinst'){rDat();return}
+ if(a==='upd'){if(!confirm('Se buscará la versión más nueva y la app se recargará. Sus datos no se borran. ¿Continuar?'))return;await flush();try{for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();for(const k of await caches.keys())await caches.delete(k)}catch(e){}location.reload();return}
  if(a==='sh-txt'||a==='sh-lite'||a==='share'){if(!E.pts.length){toast('No hay puntos para exportar');return}if(navigator.share)return shareYa(a);if(a!=='share')a='down'}
  if(a==='share'||a==='down'){if(!E.pts.length){toast('No hay puntos para exportar');return}const g=await generar();$('xi').textContent=g.nom+' · '+(g.txt.length/1048576).toFixed(2)+' MB';
   if(a==='down'){bajar(g);toast('Archivo descargado');return}
@@ -447,7 +463,7 @@ $('fCam').onchange=foto;$('fGal').onchange=foto;
  E=s||{v:4,meta:defMeta(),pts:[]};E.meta=Object.assign(defMeta(),E.meta);E.pts.forEach(p=>{p.fotos=p.fotos||[]});upAll();
  if(E.pts.some(p=>p.tipo==='fin'))await limpiarTodo();
  if(!ok)toast('Aviso: este navegador no permite guardar fotos en el equipo',4500);
- render();setSave('ok');if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});gpsArranque();gpsChip();
+ render();setSave('ok');if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});gpsArranque();gpsChip();
  if(ok){try{const dr=await DB.get('kv','borrador');if(dr&&dr.D){if(confirm('Hay un punto sin guardar de la sesión anterior. ¿Recuperarlo?'))abrir(null,null,dr);else{for(const id of(dr.ADDED||[]))await borrarFoto(id);await DB.del('kv','borrador')}}}catch(e){}}
 })();
 </script></body></html>
