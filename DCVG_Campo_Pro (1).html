@@ -217,7 +217,7 @@ function construirPlanilla(E,solo){const meta=E.meta,rows=calcular(E.pts,meta),c
    if(!solo&&(c===25||c===27||c===29)&&t[c]==='')bg='#ffffff';
    const al=(c===5||c===7)&&r.dp!=null&&!solo?132:st[c][1];
    celdas.push(mk(f,c,t[c],al,bg,st[c][4],st[c][3],st[c][2],st[c][5]))}});
- return{total_filas:8+rows.length,total_columnas:30,titulo_dcvg:meta.titulo_dcvg||'',titulo_log:meta.titulo_log||'',hito_esc:{dcvg:meta.hito_dcvg,consol:meta.hito_consol},celdas:celdas,spans:TPL.sp,columnas:TPL.col,filas:Array(8+rows.length).fill(24)}}
+ return{total_filas:8+rows.length,total_columnas:30,titulo_dcvg:meta.titulo_dcvg||'',titulo_log:meta.titulo_log||'',hito_esc:{dcvg:meta.hito_dcvg,consol:meta.hito_consol},celdas:celdas,spans:TPL.sp.map(x=>(x.fila===2||x.fila===3)&&x.col>=25&&x.col<=27?{fila:x.fila,col:x.col,rowSpan:1,colSpan:3}:x),columnas:TPL.col,filas:Array(8+rows.length).fill(24)}}
 function desdePlanilla(o){const g={};o.celdas.forEach(c=>{g[c.fila+','+c.col]=c.texto});const meta=defMeta();
  Object.keys(MAPA).forEach(k=>{const v=g[MAPA[k][0]+','+MAPA[k][1]];if(v!=null)meta[k]=String(v)});
  meta.titulo_dcvg=o.titulo_dcvg||'';meta.titulo_log=o.titulo_log||'';if(o.hito_esc){meta.hito_dcvg=o.hito_esc.dcvg;meta.hito_consol=o.hito_esc.consol}
