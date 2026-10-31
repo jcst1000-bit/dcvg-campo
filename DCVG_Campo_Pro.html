@@ -314,7 +314,7 @@ function revisar(){const L=[],rows=calcular(E.pts,E.meta),P=E.pts;
 const slug=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,28);
 const nomFoto=(p,i)=>'PK'+pkTxt(p.pk).replace('+','_')+'_'+(slug(p.desc)||p.tipo)+'_'+(i+1)+'.jpg';
 let INC=true;
-function rDat(){let us='';const L=revisar();
+function rDat(){preparar();let us='';const L=revisar();
  $('v-dat').innerHTML='<div class="card"><h3>'+ic('share')+'Exportar</h3>'+L.map(x=>'<div class="ck '+x[0]+'">'+ic(x[0]==='ok'?'check':'warn')+'<div>'+x[1]+'</div></div>').join('')
  +'<div class="sw" style="margin-top:6px"><span>Incluir fotos y datos de campo<small>Permite reanudar la inspección al importar. Apagado = solo la planilla.</small></span><input type="checkbox" class="tg" id="inc" '+(INC?'checked':'')+'></div>'
  +'<div style="height:6px"></div><button class="btn pri" data-d="share">'+ic('share')+'Compartir archivo (WhatsApp, Bluetooth, correo)</button><div style="height:8px"></div><button class="btn" data-d="down">'+ic('down')+'Descargar archivo</button><div class="hint" id="xi"></div></div>'
@@ -326,7 +326,15 @@ async function generar(){const o=construirPlanilla(E,true);
  if(INC)o.campo={formato:'dcvg_campo',version:4,exportado:new Date().toISOString(),meta:E.meta,puntos:ordenar(E.pts).map(p=>Object.assign({},p,{fotos:p.fotos.map((id,i)=>{const d=PH[id]?PH[id].data:'';return{id:id,archivo:nomFoto(p,i),mime:'image/jpeg',fecha:PH[id]?new Date(PH[id].t).toISOString():'',data:d.split(',')[1]||''}})}))};
  const txt=JSON.stringify(o,null,4),f=(E.meta.fecha||hoy()).split('/').reverse().join('-');return{txt:txt,nom:'DCVG_'+(slug(E.meta.empresa)||'campo')+'_'+f+'.json'}}
 function bajar(g){const b=new Blob([g.txt],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=g.nom;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href)},2000)}
+let PRE=null;
+async function preparar(){PRE=null;try{PRE=await generar()}catch(e){PRE=null}}
+function shareYa(){if(!PRE){toast('Preparando el archivo… toque de nuevo en unos segundos',3500);preparar();return}
+ const g=PRE,mk=(n,t)=>new File([g.txt],n,{type:t}),L=[mk(g.nom,'application/json'),mk(g.nom,'text/plain'),mk(g.nom.replace(/\.json$/,'.txt'),'text/plain')];
+ const f=L.find(x=>!navigator.canShare||navigator.canShare({files:[x]}));
+ if(!f){bajar(g);toast('Este equipo no permite compartir directo: se descargó el archivo',4500);return}
+ navigator.share({files:[f],title:f.name,text:'Inspección DCVG'}).catch(e=>{if(e&&e.name==='AbortError')return;toast('No se pudo abrir Compartir: '+((e&&e.name)||'error'),4000)})}
 async function accionDatos(a){
+ if(a==='share'){if(!E.pts.length){toast('No hay puntos para exportar');return}if(navigator.share)return shareYa()}
  if(a==='share'||a==='down'){if(!E.pts.length){toast('No hay puntos para exportar');return}const g=await generar();$('xi').textContent=g.nom+' · '+(g.txt.length/1048576).toFixed(2)+' MB';
   if(a==='down'){bajar(g);toast('Archivo descargado');return}
   for(const ty of['application/json','text/plain']){try{const f=new File([g.txt],g.nom,{type:ty});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:g.nom,text:'Inspección DCVG'});return}}catch(e){if(e&&e.name==='AbortError')return}}
@@ -339,7 +347,7 @@ async function cancelarInsp(){if(!confirm('¿CANCELAR la inspección en curso?\n
 async function limpiarTodo(){clearTimeout(dt);clearTimeout(tm);await DB.clear('fotos');try{await DB.del('kv','borrador')}catch(e){}PH={};const pr={neg_auto:E.meta.neg_auto,estampar:E.meta.estampar};E={v:4,meta:Object.assign(defMeta(),pr),pts:[]};D=null;EDIT=null;ADDED=[];REMOVED=[];PZ=null;INC=true;$('sheet').classList.remove('on');await flush()}
 async function nueva(){if(!confirm('¿Iniciar una NUEVA inspección?\n\nSe borra TODO: puntos, fotos, cabecera, resistividades y planilla. Asegúrese de haber exportado el archivo.'))return;await limpiarTodo();ir('rec');toast('Nueva inspección limpia')}
 $('v-dat').onclick=e=>{const b=e.target.closest('[data-d]');if(b)accionDatos(b.dataset.d)};
-$('v-dat').addEventListener('change',e=>{if(e.target.id==='inc')INC=e.target.checked});
+$('v-dat').addEventListener('change',e=>{if(e.target.id==='inc'){INC=e.target.checked;preparar()}});
 $('fImp').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;importar(await f.text())};
 async function importar(txt){let o;try{o=JSON.parse(txt.replace(/^\uFEFF/,''))}catch(e){toast('El texto no es un JSON válido',3500);return}
  let nE;
