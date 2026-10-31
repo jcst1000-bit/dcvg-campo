@@ -130,6 +130,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ac);box-shadow:0 0 0 
 .irb{display:inline-flex;align-items:center;font-weight:900;font-size:15px;padding:4px 11px;border-radius:99px;border:2px solid #fff}
 #v-pla.hz{position:fixed;inset:0;z-index:50;background:#000;animation:none!important;overflow:hidden}
 html,body{overscroll-behavior:none;-webkit-touch-callout:none}
+input.t:not([type=date]),textarea,.pt .d,.pt .k,#sub{text-transform:uppercase}
 </style></head><body>
 <div id="app">
  <div class="top"><div class="brand"><div class="logo" id="lg"></div><div><b>DCVG Campo Pro</b><small id="sub">Inspección</small></div></div><div class="tc"><div class="chip" id="sv"><i class="dot"></i><span>Listo</span></div><div class="chip" id="gt"><i class="dot"></i><span>GPS…</span></div></div></div>
@@ -194,8 +195,8 @@ const CALC=[5,7,15,16,19,20,24,25,26,27,28,29];
 const RECT=['ubicacion','sector','voltage','corriente','pot_on','pot_off','int_on','int_off'];
 function construirPlanilla(E,solo){const meta=E.meta,rows=calcular(E.pts,meta),celdas=[],mp={};
  Object.keys(MAPA).forEach(k=>{mp[MAPA[k][0]+','+MAPA[k][1]]=meta[k]==null||(RECT.indexOf(k)>=0&&!meta.usa_rect)?'':String(meta[k])});
- const mk=(f,c,t,a,bg,fg,sz,ng,br)=>({fila:f,col:c,texto:t,alineacion:a,color_fondo:bg,color_texto:fg,tamano:sz,negrita:ng,borde:br});
- TPL.h.forEach(c=>{const k=c[0]+','+c[1];celdas.push(mk(c[0],c[1],k in mp?mp[k]:c[2],c[3],c[4],c[5],c[6],c[7],c[8]))});
+ const mk=(f,c,t,a,bg,fg,sz,ng,br)=>({fila:f,col:c,texto:String(t==null?'':t).toUpperCase(),alineacion:a,color_fondo:bg,color_texto:fg,tamano:sz,negrita:ng,borde:br});
+ TPL.h.forEach(c=>{const k=c[0]+','+c[1];celdas.push(mk(c[0],c[1],k in mp?mp[k]:c[2],132,c[4],c[5],c[6],true,c[8]))});
  rows.forEach((r,i)=>{const f=8+i,st=TPL.st[r.p.tipo],t=textos(r);if(solo)CALC.forEach(c=>{t[c]=''});
   for(let c=0;c<30;c++){let bg=st[c][0];
    if(!solo&&r.p.tipo==='anom'&&(c===13||c===14)){const o=acColor(r.p.acon,r.p.acoff);if(o)bg=o}
@@ -220,6 +221,8 @@ const ICONS={cam:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h
 const ic=n=>'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+ICONS[n]+'</svg>';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const $=i=>document.getElementById(i);
+function up(t){const a=t.selectionStart,b=t.selectionEnd,v=t.value.toUpperCase();if(v!==t.value){t.value=v;try{t.setSelectionRange(a,b)}catch(e){}}}
+function upAll(){['empresa','proyecto','diametro','lugar_ini','lugar_fin','sector_tramo','ubicacion','sector','titulo_dcvg','titulo_log'].forEach(k=>{if(typeof E.meta[k]==='string')E.meta[k]=E.meta[k].toUpperCase()});E.pts.forEach(p=>{['desc','nota'].forEach(k=>{if(typeof p[k]==='string')p[k]=p[k].toUpperCase()})})}
 function noAuto(){document.querySelectorAll('input:not([type=checkbox]),textarea').forEach(e=>{e.setAttribute('autocomplete','off');e.setAttribute('autocorrect','off');e.setAttribute('spellcheck','false')})}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 let E=null,PH={},D=null,EDIT=null,ADDED=[],REMOVED=[],stopGPS=null,VIEW='rec';
@@ -282,7 +285,7 @@ function rCab(){const m=E.meta;
  +'<div class="card">'+sw('usa_rect','CAMA TEMPORAL','Active solo si aplica en esta inspección')+(m.usa_rect?fld('ubicacion','Ubicación')+fld('sector','Sector (ubicación)')+'<div class="g2"><div>'+fld('voltage','Voltage DC',{num:1})+'</div><div>'+fld('corriente','Corriente DC',{num:1})+'</div><div>'+fld('pot_on','Potencial ON',{num:1})+'</div><div>'+fld('pot_off','Potencial OFF',{num:1})+'</div><div>'+fld('int_on','Interrupción ON (seg)',{num:1})+'</div><div>'+fld('int_off','Interrupción OFF (seg)',{num:1})+'</div></div>':'')+'</div>'
  +'<div class="card">'+sw('usa_res','Resistividad del suelo','Active solo si midió resistividad')+(m.usa_res?'<div class="g3"><div>'+fld('r1','R (1M) Ω',{num:1})+'</div><div>'+fld('r2','R (2M) Ω',{num:1})+'</div><div>'+fld('r3','R (3M) Ω',{num:1})+'</div></div><div class="hint">Los resultados se ven calculados en la Planilla.</div>':'')+'</div>'
  +'<div class="card"><h3>'+ic('cam')+'Preferencias</h3><div class="sw"><span>Potenciales siempre negativos<small>Un 994 escrito se guarda como -994</small></span><input type="checkbox" class="tg" data-p="neg_auto" '+(m.neg_auto?'checked':'')+'></div><div class="sw"><span>Estampar PK, fecha y GPS en las fotos<small>Queda grabado en la imagen</small></span><input type="checkbox" class="tg" data-p="estampar" '+(m.estampar?'checked':'')+'></div></div>'}
-$('v-cab').addEventListener('input',e=>{const t=e.target;if(t.dataset.m){const k=t.dataset.m;E.meta[k]=(k==='hito_dcvg'||k==='hito_consol')?(parseFloat(String(t.value).replace(',','.'))||1):t.value;persist();$('sub').textContent=[E.meta.empresa,E.meta.proyecto].filter(Boolean).join(' · ')||'Inspección DCVG'}
+$('v-cab').addEventListener('input',e=>{const t=e.target;if(t.dataset.m){const k=t.dataset.m;if(t.type==='text')up(t);E.meta[k]=(k==='hito_dcvg'||k==='hito_consol')?(parseFloat(String(t.value).replace(',','.'))||1):t.value;persist();$('sub').textContent=[E.meta.empresa,E.meta.proyecto].filter(Boolean).join(' · ')||'Inspección DCVG'}
  if(t.id==='mf'){const v=t.value;E.meta.fecha=v?v.slice(8,10)+'/'+v.slice(5,7)+'/'+v.slice(0,4):'';persist()}});
 $('v-cab').addEventListener('focusin',e=>{const t=e.target;if(t.dataset.m!=='ubicacion'||t.value.trim())return;if(!FIX){toast('Aún sin señal GPS: espere un momento y toque de nuevo');return}const v=gms(FIX.lat,true)+' '+gms(FIX.lon,false);t.value=v;E.meta.ubicacion=v;persist();vib()});
 $('v-cab').addEventListener('change',e=>{const t=e.target;if(t.dataset.p){E.meta[t.dataset.p]=t.checked;persist();if(t.dataset.p==='usa_rect'||t.dataset.p==='usa_res'){rCab();noAuto()}}});
@@ -344,7 +347,7 @@ async function importar(txt){let o;try{o=JSON.parse(txt.replace(/^\uFEFF/,''))}c
  else if(o.celdas&&o.total_filas){nE=desdePlanilla(o);nE._f=[]}
  else{toast('Formato no reconocido',3500);return}
  if(E.pts.length&&!confirm('Esto reemplaza la inspección actual ('+E.pts.length+' puntos). ¿Continuar?'))return;
- await DB.clear('fotos');PH={};for(const f of nE._f){PH[f[0]]=f[1];try{await DB.put('fotos',f[0],f[1])}catch(e){}}delete nE._f;nE.pts=ordenar(nE.pts);E=nE;await flush();ir('rec');toast('Inspección cargada: '+E.pts.length+' puntos, '+nFotos()+' fotos',3200)}
+ await DB.clear('fotos');PH={};for(const f of nE._f){PH[f[0]]=f[1];try{await DB.put('fotos',f[0],f[1])}catch(e){}}delete nE._f;nE.pts=ordenar(nE.pts);E=nE;upAll();await flush();ir('rec');toast('Inspección cargada: '+E.pts.length+' puntos, '+nFotos()+' fotos',3200)}
 
 /* ---------- EDITOR DE PUNTO ---------- */
 const MARCAS=['VÁLVULA','CRUCE DE VÍA','CAJA ÁNODOS','CRUCE DE RÍO','POSTE','CERCA','TEST POINT','CASETA'];
@@ -386,7 +389,7 @@ function fotos(){const e=$('ph');if(!e)return;e.innerHTML=D.fotos.map(id=>PH[id]
 function vivo(){const x=$('pkx');if(x)x.textContent=pkTxt(D.pk)}
 let dt=null;
 function guardarBorrador(){clearTimeout(dt);dt=setTimeout(()=>{if(D)DB.put('kv','borrador',{D:D,EDIT:EDIT,ADDED:ADDED,REMOVED:REMOVED}).catch(()=>{})},400)}
-$('sb').addEventListener('input',e=>{const t=e.target;if(t.dataset.av){const k=t.dataset.av,v=String(D[k]||''),L=(v[0]==='A'||v[0]==='C')?v[0]:'';t.value=t.value.replace(/[^0-9]/g,'');acSet(k,L,t.value);guardarBorrador();return}if(!t.dataset.k)return;D[t.dataset.k]=t.value;if(t.id==='e_lat'||t.id==='e_lon')D.gpsManual=true;vivo();guardarBorrador()
+$('sb').addEventListener('input',e=>{const t=e.target;if(t.dataset.av){const k=t.dataset.av,v=String(D[k]||''),L=(v[0]==='A'||v[0]==='C')?v[0]:'';t.value=t.value.replace(/[^0-9]/g,'');acSet(k,L,t.value);guardarBorrador();return}if(!t.dataset.k)return;if(t.tagName==='TEXTAREA'||t.dataset.k==='desc')up(t);D[t.dataset.k]=t.value;if(t.id==='e_lat'||t.id==='e_lon')D.gpsManual=true;vivo();guardarBorrador()
  if(0){}});
 $('sb').addEventListener('focusout',e=>{const t=e.target;if((t.id==='e_on'||t.id==='e_off')&&E.meta.neg_auto){const v=$n(t.value);if(v!=null&&v>0){t.value='-'+t.value.trim().replace(',','.');D[t.dataset.k]=t.value;vivo()}}});
 $('sb').addEventListener('click',e=>{const b=e.target.closest('button,img');if(!b)return;
@@ -416,7 +419,7 @@ $('sf').addEventListener('click',async e=>{const b=e.target.closest('[data-s]');
 async function bmp(f){try{return await createImageBitmap(f,{imageOrientation:'from-image'})}catch(e){return await new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ko;i.src=URL.createObjectURL(f)})}}
 async function procesar(f){const b=await bmp(f),w0=b.width,h0=b.height,k=Math.min(1,1280/Math.max(w0,h0)),w=Math.round(w0*k),h=Math.round(h0*k),c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.drawImage(b,0,0,w,h);
  if(E.meta.estampar){const l1='PK '+pkTxt(D.pk)+' · '+TIPOS[D.tipo].n+(D.desc?' · '+D.desc:''),n=new Date(),l2=pad(n.getDate(),2)+'/'+pad(n.getMonth()+1,2)+'/'+n.getFullYear()+' '+pad(n.getHours(),2)+':'+pad(n.getMinutes(),2)+(D.lat!==''&&D.lat!=null&&$n(D.lat)!=null?' · '+Number($n(D.lat)).toFixed(6)+', '+Number($n(D.lon)).toFixed(6):''),fs=Math.max(14,Math.round(w/38));
-  x.font='700 '+fs+'px system-ui,sans-serif';x.fillStyle='rgba(0,0,0,.6)';x.fillRect(0,h-fs*2.9,w,fs*2.9);x.fillStyle='#fff';x.textBaseline='top';x.fillText(l1,fs*.6,h-fs*2.65);x.font='600 '+Math.round(fs*.88)+'px system-ui,sans-serif';x.fillStyle='#bfe9ff';x.fillText(l2,fs*.6,h-fs*1.4)}
+  x.font='700 '+fs+'px system-ui,sans-serif';x.fillStyle='rgba(0,0,0,.6)';x.fillRect(0,h-fs*2.9,w,fs*2.9);x.fillStyle='#fff';x.textBaseline='top';x.fillText(l1.toUpperCase(),fs*.6,h-fs*2.65);x.font='600 '+Math.round(fs*.88)+'px system-ui,sans-serif';x.fillStyle='#bfe9ff';x.fillText(l2,fs*.6,h-fs*1.4)}
  const data=c.toDataURL('image/jpeg',.72),id=uid(),o={data:data,t:Date.now()};PH[id]=o;try{await DB.put('fotos',id,o)}catch(e){toast('Aviso: no se pudo guardar la foto en el equipo',3500)}D.fotos.push(id);ADDED.push(id)}
 async function foto(e){const fs=[].slice.call(e.target.files);e.target.value='';if(!fs.length||!D)return;toast('Procesando foto…',1500);for(const f of fs){try{await procesar(f)}catch(er){toast('No se pudo leer la imagen')}}fotos();guardarBorrador();vib(15)}
 $('fCam').onchange=foto;$('fGal').onchange=foto;
@@ -426,7 +429,7 @@ $('fCam').onchange=foto;$('fGal').onchange=foto;
  const ok=await DB.open();let s=null;
  if(ok){try{s=await DB.get('kv','estado');(await DB.all('fotos')).forEach(f=>{PH[f[0]]=f[1]})}catch(e){}}
  if(!s){try{const l=localStorage.getItem('dcvg_estado_v4');if(l)s=JSON.parse(l)}catch(e){}}
- E=s||{v:4,meta:defMeta(),pts:[]};E.meta=Object.assign(defMeta(),E.meta);E.pts.forEach(p=>{p.fotos=p.fotos||[]});
+ E=s||{v:4,meta:defMeta(),pts:[]};E.meta=Object.assign(defMeta(),E.meta);E.pts.forEach(p=>{p.fotos=p.fotos||[]});upAll();
  if(E.pts.some(p=>p.tipo==='fin'))await limpiarTodo();
  if(!ok)toast('Aviso: este navegador no permite guardar fotos en el equipo',4500);
  render();setSave('ok');if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});gpsArranque();gpsChip();
