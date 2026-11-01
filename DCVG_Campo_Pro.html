@@ -262,7 +262,7 @@ let E=null,PH={},D=null,EDIT=null,ADDED=[],REMOVED=[],stopGPS=null,VIEW='rec';
 /* ---------- almacenamiento local (IndexedDB) ---------- */
 const DB={db:null,ok:false,
  open(){return new Promise(res=>{try{const q=indexedDB.open('dcvg_campo_pro',1);q.onupgradeneeded=()=>{q.result.createObjectStore('kv');q.result.createObjectStore('fotos')};q.onsuccess=()=>{DB.db=q.result;DB.ok=true;res(true)};q.onerror=()=>res(false);q.onblocked=()=>res(false)}catch(e){res(false)}})},
- st(s,m){return DB.db.transaction(s,m).objectStore(s)},
+ st(s,m){let t;try{t=m==='readwrite'?DB.db.transaction(s,m,{durability:'strict'}):DB.db.transaction(s,m)}catch(e){t=DB.db.transaction(s,m)}return t.objectStore(s)},
  rq(r){return new Promise((a,b)=>{r.onsuccess=()=>a(r.result);r.onerror=()=>b(r.error)})},
  get(s,k){return DB.ok?DB.rq(DB.st(s,'readonly').get(k)):Promise.resolve(null)},
  put(s,k,v){return DB.ok?DB.rq(DB.st(s,'readwrite').put(v,k)):Promise.reject(new Error('sin DB'))},
@@ -272,9 +272,9 @@ const DB={db:null,ok:false,
 let tm=null;
 function setSave(s){const e=$('sv');e.className='chip '+(s==='ok'?'ok':s==='err'?'bad':'am');e.querySelector('span').textContent=s==='ok'?'Guardado '+new Date().toTimeString().slice(0,8):s==='err'?'Error al guardar':'Guardando…'}
 function saveSync(){try{E._ts=Date.now();localStorage.setItem('dcvg_estado_v4',JSON.stringify(E));if(E.pts.length)localStorage.setItem('dcvg_respaldo',JSON.stringify(E));return true}catch(e){return false}}
-function persist(){setSave('…');saveSync();clearTimeout(tm);tm=setTimeout(flush,300)}
+function persist(ya){setSave('…');saveSync();clearTimeout(tm);if(ya)flush();else tm=setTimeout(flush,300)}
 async function flush(){clearTimeout(tm);let ok=saveSync();try{await DB.put('kv','estado',E);ok=true}catch(e){}setSave(ok?'ok':'err')}
-addEventListener('pagehide',flush);document.addEventListener('visibilitychange',()=>{if(document.hidden)flush()});
+addEventListener('pagehide',()=>{flush();borradorAhora()});document.addEventListener('visibilitychange',()=>{if(document.hidden){flush();borradorAhora()}});
 function toast(t,ms){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),ms||2200)}
 const vib=n=>{try{navigator.vibrate&&navigator.vibrate(n||12)}catch(e){}};
 
@@ -392,7 +392,7 @@ async function accionDatos(a){
  if(a==='pimp'){const t=$('pas').value.trim();if(!t){toast('Pegue primero el texto');return}importar(t)}
  if(a==='clr'){if(confirm('¿Borrar TODA la inspección y las fotos de este equipo?\nExporte antes si no tiene respaldo.')){await limpiarTodo();toast('Inspección borrada');render()}}}
 async function cancelarInsp(){if(!confirm('¿CANCELAR la inspección en curso?\n\nSe descartan todos los puntos y fotos registrados. La info general se conserva.'))return;await DB.clear('fotos');PH={};E.pts=[];await flush();ir('rec');toast('Inspección cancelada')}
-async function limpiarTodo(){clearTimeout(dt);clearTimeout(tm);await DB.clear('fotos');try{await DB.del('kv','borrador')}catch(e){}PH={};const pr={neg_auto:E.meta.neg_auto,estampar:E.meta.estampar};E={v:4,meta:Object.assign(defMeta(),pr),pts:[]};D=null;EDIT=null;ADDED=[];REMOVED=[];PZ=null;INC=false;$('sheet').classList.remove('on');await flush()}
+async function limpiarTodo(){clearTimeout(dt);clearTimeout(tm);await DB.clear('fotos');try{await delBorrador()}catch(e){}PH={};const pr={neg_auto:E.meta.neg_auto,estampar:E.meta.estampar};E={v:4,meta:Object.assign(defMeta(),pr),pts:[]};D=null;EDIT=null;ADDED=[];REMOVED=[];PZ=null;INC=false;$('sheet').classList.remove('on');await flush()}
 async function nueva(){if(!confirm('¿Iniciar una NUEVA inspección?\n\nSe borra TODO: puntos, fotos, info general, resistividades y planilla. Asegúrese de haber exportado el archivo.'))return;await limpiarTodo();ir('rec');toast('Nueva inspección limpia')}
 $('v-dat').onclick=e=>{const b=e.target.closest('[data-d]');if(b)accionDatos(b.dataset.d)};
 $('v-dat').addEventListener('change',e=>{if(e.target.id==='inc'){INC=e.target.checked;preparar()}});
@@ -487,7 +487,10 @@ function acSet(k,L,N){D[k]=(L||'')+(N||'')}
 function fotos(){const e=$('ph');if(!e)return;e.innerHTML=D.fotos.map(id=>PH[id]?'<div><img data-lb="'+id+'" src="'+PH[id].data+'" alt=""><button data-fd="'+id+'">'+ic('x')+'</button></div>':'').join('');$('fc').textContent=D.fotos.length?'('+D.fotos.length+')':''}
 function vivo(){const x=$('pkx');if(x)x.textContent=pkTxt(D.pk)}
 let dt=null;
-function guardarBorrador(){clearTimeout(dt);dt=setTimeout(()=>{if(D)DB.put('kv','borrador',{D:D,EDIT:EDIT,ADDED:ADDED,REMOVED:REMOVED}).catch(()=>{})},400)}
+function borradorObj(){return{D:D,EDIT:EDIT,ADDED:ADDED,REMOVED:REMOVED}}
+function borradorAhora(){if(!D)return;clearTimeout(dt);const o=borradorObj();try{localStorage.setItem('dcvg_borrador',JSON.stringify(o))}catch(e){}DB.put('kv','borrador',o).catch(()=>{})}
+async function delBorrador(){try{localStorage.removeItem('dcvg_borrador')}catch(e){}await DB.del('kv','borrador')}
+function guardarBorrador(){clearTimeout(dt);if(D){try{localStorage.setItem('dcvg_borrador',JSON.stringify(borradorObj()))}catch(e){}}dt=setTimeout(()=>{if(D)DB.put('kv','borrador',borradorObj()).catch(()=>{})},400)}
 $('sb').addEventListener('input',e=>{const t=e.target;if(t.dataset.av){const k=t.dataset.av,v=String(D[k]||''),L=(v[0]==='A'||v[0]==='C')?v[0]:'';t.value=t.value.replace(/[^0-9]/g,'');acSet(k,L,t.value);guardarBorrador();return}if(!t.dataset.k)return;if(t.tagName==='TEXTAREA'||t.dataset.k==='desc')up(t);D[t.dataset.k]=t.value;if(t.id==='e_lat'||t.id==='e_lon')D.gpsManual=true;vivo();guardarBorrador()
  if(0){}});
 $('sb').addEventListener('focusout',e=>{const t=e.target;if((t.id==='e_on'||t.id==='e_off')&&E.meta.neg_auto){const v=$n(t.value);if(v!=null&&v>0){t.value='-'+t.value.trim().replace(',','.');D[t.dataset.k]=t.value;vivo()}}});
@@ -504,7 +507,7 @@ $('sb').addEventListener('click',e=>{const b=e.target.closest('button,img');if(!
 $('lbx').innerHTML=ic('x');$('lb').onclick=()=>$('lb').classList.remove('on');$('sx').innerHTML=ic('x');$('lg').innerHTML=ic('bolt');$('ex').innerHTML=ic('power');$('ex').onclick=async()=>{if(!confirm('¿Salir de la app?\nSus datos quedan guardados.'))return;await flush();try{window.close()}catch(e){}setTimeout(()=>$('bye').classList.add('on'),400)};$('msgc').onclick=()=>$('msg').classList.remove('on');$('byeb').onclick=()=>$('bye').classList.remove('on');
 async function borrarFoto(id){delete PH[id];try{await DB.del('fotos',id)}catch(e){}}
 async function cerrarEd(guardado){if(!guardado){for(const id of ADDED)await borrarFoto(id)}else{for(const id of REMOVED)await borrarFoto(id)}
- ADDED=[];REMOVED=[];D=null;EDIT=null;try{await DB.del('kv','borrador')}catch(e){}$('sheet').classList.remove('on');render()}
+ ADDED=[];REMOVED=[];D=null;EDIT=null;try{await delBorrador()}catch(e){}$('sheet').classList.remove('on');render()}
 $('sx').onclick=()=>cerrarEd(false);
 $('sf').addEventListener('click',async e=>{const b=e.target.closest('[data-s]');if(!b)return;const a=b.dataset.s;
  if(a==='cancel')return cerrarEd(false);
@@ -514,7 +517,7 @@ $('sf').addEventListener('click',async e=>{const b=e.target.closest('[data-s]');
   if(!EDIT&&!D.gpsManual&&FIX){D.lat=FIX.lat;D.lon=FIX.lon;D.acc=FIX.acc}
   const sinGps=$n(D.lat)==null;delete D.gpsManual;
   D.pk=norm(D.pk);['on','off','n','s','e','o','olre','r1','r2','r3'].forEach(k=>{D[k]=norm(D[k])});D.lat=$n(D.lat)==null?'':$n(D.lat);D.lon=$n(D.lon)==null?'':$n(D.lon);
-  const i=E.pts.findIndex(p=>p.id===D.id);if(D.tipo==='marca'&&(i<0||E.pts[i].desc!==D.desc))vocLearn(D.desc);if(i<0)E.pts.push(D);else E.pts[i]=D;E.pts=ordenar(E.pts);persist();vib(20);
+  const i=E.pts.findIndex(p=>p.id===D.id);if(D.tipo==='marca'&&(i<0||E.pts[i].desc!==D.desc))vocLearn(D.desc);if(i<0)E.pts.push(D);else E.pts[i]=D;E.pts=ordenar(E.pts);persist(true);vib(20);
   const t=D.tipo;await cerrarEd(true);toast(sinGps?'Guardado SIN coordenadas (GPS sin señal)':dup?'Guardado (ya había un punto igual en ese PK)':'Punto guardado',sinGps?3200:2200);if(a==='okn')abrir(t===('marca')?'marca':t,null)}});
 
 /* ---------- fotos: cámara, compresión y sello ---------- */
@@ -534,9 +537,9 @@ $('fCam').onchange=foto;$('fGal').onchange=foto;
  try{const l=JSON.parse(localStorage.getItem('dcvg_estado_v4')||'null');if(l&&l.pts&&(!s||(l._ts||0)>(s._ts||0)))s=l}catch(e){}
  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
  E=s||{v:4,meta:defMeta(),pts:[]};E.meta=Object.assign(defMeta(),E.meta);E.pts.forEach(p=>{p.fotos=p.fotos||[]});upAll();
- if(E.pts.some(p=>p.tipo==='fin'))await limpiarTodo();
  if(!ok)toast('Aviso: este navegador no permite guardar fotos en el equipo',4500);
- render();setSave('ok');if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});gpsArranque();gpsChip();
- if(ok){try{const dr=await DB.get('kv','borrador');if(dr&&dr.D){if(confirm('Hay un punto sin guardar de la sesión anterior. ¿Recuperarlo?'))abrir(null,null,dr);else{for(const id of(dr.ADDED||[]))await borrarFoto(id);await DB.del('kv','borrador')}}}catch(e){}}
+ render();setSave('ok');if(E.pts.length){const fz=E.pts.some(p=>p.tipo==='fin');toast((fz?'Inspección finalizada recuperada · ':'Inspección en curso recuperada · ')+E.pts.length+' punto'+(E.pts.length===1?'':'s')+(fz?'. Recuerde exportarla en Datos.':''),fz?4500:3200)}if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});gpsArranque();gpsChip();
+ try{let dr=null;try{dr=JSON.parse(localStorage.getItem('dcvg_borrador')||'null')}catch(e){}if(!(dr&&dr.D)&&ok){try{dr=await DB.get('kv','borrador')}catch(e){}}
+  if(dr&&dr.D){if(confirm('Hay un punto sin guardar de la sesión anterior. ¿Recuperarlo?'))abrir(null,null,dr);else{for(const id of(dr.ADDED||[]))await borrarFoto(id);await delBorrador()}}}catch(e){}
 })();
 </script></body></html>

@@ -1,4 +1,34 @@
-const C='dcvg-campo-v12-2026-10-31',F=['./','./DCVG_Campo_Pro.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-180.png'];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(F)).then(()=>self.skipWaiting()))});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
-self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request,{cache:'no-store'}).then(r=>{const c=r.clone();caches.open(C).then(x=>x.put(e.request,c));return r}).catch(()=>caches.match(e.request).then(m=>m||caches.match('./DCVG_Campo_Pro.html'))))});
+// DCVG Campo Pro - service worker
+// Objetivo: que la app SIEMPRE abra, con o sin señal, y que una respuesta mala
+// del servidor (error, portal de wifi, etc.) nunca reemplace la copia buena guardada.
+const C='dcvg-campo-v13-2026-11-01',
+F=['./','./DCVG_Campo_Pro.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-180.png'],
+CRIT=['./','./DCVG_Campo_Pro.html'], // si estos fallan, no se instala; los iconos no son críticos
+ESPERA=4000; // ms: con señal mala se abre la copia guardada en vez de quedarse esperando
+
+self.addEventListener('install',e=>{e.waitUntil(
+  caches.open(C)
+    .then(c=>Promise.all(F.map(u=>c.add(new Request(u,{cache:'reload'})).catch(err=>{if(CRIT.includes(u))throw err}))))
+    .then(()=>self.skipWaiting()))});
+
+self.addEventListener('activate',e=>{e.waitUntil(
+  caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
+
+const red=r=>new Promise((ok,no)=>{
+  const t=setTimeout(()=>no(new Error('espera')),ESPERA);
+  fetch(r,{cache:'no-store'}).then(x=>{clearTimeout(t);ok(x)},x=>{clearTimeout(t);no(x)})});
+
+self.addEventListener('fetch',e=>{
+  const r=e.request;
+  if(r.method!=='GET'||new URL(r.url).origin!==location.origin)return;
+  e.respondWith((async()=>{
+    let x=null;
+    try{x=await red(r)}catch(_){}
+    // Solo se guarda una respuesta correcta del propio sitio (nunca un 404/500 ni una página ajena)
+    if(x&&x.ok&&x.type==='basic'){
+      const c=x.clone();
+      e.waitUntil(caches.open(C).then(k=>k.put(r,c)).catch(()=>{}));
+      return x}
+    // Sin señal, señal lenta o respuesta mala: se usa la copia guardada
+    const m=await caches.match(r,{ignoreSearch:true})||(r.mode==='navigate'?await caches.match('./DCVG_Campo_Pro.html'):null);
+    return m||x||Response.error()})())});
