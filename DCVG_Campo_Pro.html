@@ -303,7 +303,7 @@ function rRec(){const ini=tiene('inicio'),fin=tiene('fin'),rows=calcular(E.pts,E
   if(p.tipo==='anom'){
    if(p.acon||p.acoff)b+=acChip(p);
    if(p.olre)b+='<span class="chip am">OL/RE '+esc(p.olre)+'</span>';
-   b+=r.pct!=null?'<span class="irb" style="background:'+irColor(r.pct)+';color:'+(r.pct>60||r.pct<=15?'#fff':'#000')+'">% SEVERIDAD '+r.pct.toFixed(2).replace('.',',')+'%</span>':'<span class="irb" style="background:#333;color:#fff">% SEVERIDAD pendiente</span>';
+   b+=r.pct!=null?'<span class="irb" style="background:'+irColor(r.pct)+';color:'+(r.pct>60||r.pct<=15?'#fff':'#000')+'">% IR '+r.pct.toFixed(2)+'%</span>':'<span class="irb" style="background:#333;color:#fff">% IR pendiente</span>';
    b+=onoff}
   else b+=onoff;
   if(p.lat!==''&&p.lat!=null)b+='<span class="chip ok">'+ic('pin').replace('class="ic"','class="ic" style="width:12px;height:12px"')+'GPS</span>';
