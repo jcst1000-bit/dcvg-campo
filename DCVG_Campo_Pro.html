@@ -59,7 +59,7 @@ input.t{font-size:16px}textarea{font-size:15px;resize:vertical}
 .pt:active{background:var(--card2)}.pt:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c)}
 .pt .m{flex:1;min-width:0;padding-left:6px}.pt .k{font-weight:800;font-size:17px}.pt .d{color:var(--mu);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pt .tag{font-size:10.5px;font-weight:800;letter-spacing:.7px;color:var(--c);text-transform:uppercase}
-.bd{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.bd .chip{font-size:11.5px;padding:3px 8px}
+.bd{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.bd .chip{font-size:11.5px;padding:3px 8px}.acg{display:inline-flex;align-items:center;gap:6px;padding:2px 8px 2px 3px;border-radius:99px;border:2px solid #fff}.acg svg{width:17px;height:17px;flex:none;display:block}
 .th{width:54px;height:54px;border-radius:12px;object-fit:cover;flex:none;border:1px solid var(--bd);background:var(--inp);display:grid;place-items:center;color:var(--mu);font-size:11px}
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:center;padding:8px 12px calc(8px + env(safe-area-inset-bottom))}
 .tabs>div{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;width:100%;max-width:560px;padding:6px;border-radius:24px;background:var(--card2);border:1px solid var(--bd);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:var(--sh)}
@@ -196,6 +196,9 @@ function calcular(pts,meta){
   return r});out.nota=nota;return out}
 const acColor=(a,b)=>{const ok=v=>v==='A'||v==='C',x=(a||'').trim().toUpperCase()[0],y=(b||'').trim().toUpperCase()[0];if(!ok(x)&&!ok(y))return null;if(ok(x)&&ok(y)&&x!==y)return'#ff0000';return(ok(x)?x:y)==='A'?'#00aa00':'#00c3ca'};
 const irColor=v=>v<=15?'#4675bb':v<=35?'#60bb58':v<=60?'#ffff7f':'#ff0000';
+const AC_TIPO={AA:{c:'#00aa00',t:'#000',n:'Anódica - Anódica',g:'<polygon points="8,0.8 15.2,8 8,15.2 0.8,8"'},CC:{c:'#00c3ca',t:'#000',n:'Catódica - Catódica',g:'<polygon points="8,1.2 15.2,14.4 0.8,14.4"'},AC:{c:'#ff0000',t:'#fff',n:'Anódica - Catódica',g:'<circle cx="8" cy="8" r="6.8"'}};
+const acLet=v=>{v=String(v||'').trim().toUpperCase()[0];return v==='A'||v==='C'?v:''};
+const acChip=p=>{const a=acLet(p.acon),c=acLet(p.acoff),tx=[p.acon,p.acoff].filter(x=>x!==''&&x!=null).map(x=>esc(String(x).toUpperCase())).join(' - '),k=a&&c?(a===c?a+a:'AC'):'',T=k?AC_TIPO[k]:null;if(!T)return '<span class="chip">'+tx+'</span>';return '<span class="acg" title="'+T.n+'">'+'<span class="chip" style="background:'+T.c+';border-color:'+T.c+';color:'+T.t+'">'+tx+'</span>'+'<svg viewBox="0 0 16 16" aria-hidden="true">'+T.g+' fill="'+T.c+'" stroke="#000" stroke-opacity=".55" stroke-width=".8"/></svg></span>'};
 function textos(r){const p=r.p,t=Array(30).fill(''),u=true;
  t[0]=String(r.item);t[1]=p.desc||'';t[2]=norm(p.pk);
  if(u){t[3]=norm(p.on);t[4]=norm(p.off);if(r.dp!=null){t[5]=fmt(r.dp);t[7]=fmt(r.tot)}}
@@ -298,7 +301,7 @@ function rRec(){const ini=tiene('inicio'),fin=tiene('fin'),rows=calcular(E.pts,E
  if(!rows.length)h+='<div class="empty">Aún no hay puntos.<br>Complete la <b>Cabecera</b> y toque “Iniciar inspección”.</div>';
  rows.forEach(r=>{const p=r.p,T=TIPOS[p.tipo];let b='';if(p.tipo==='anom')b+=r.pct!=null?'<span class="irb" style="background:'+irColor(r.pct)+';color:'+(r.pct>60||r.pct<=15?'#fff':'#000')+'">% IR '+r.pct.toFixed(2)+'%</span>':'<span class="irb" style="background:#333;color:#fff">% IR pendiente</span>';
   if(p.on!==''||p.off!=='')b+='<span class="chip">ON '+esc(p.on)+' / OFF '+esc(p.off)+'</span>';
-  if(p.tipo==='anom'){if(p.olre)b+='<span class="chip am">OL/RE '+esc(p.olre)+'</span>';if(p.acon||p.acoff)b+='<span class="chip">A/C '+esc(p.acon)+' · '+esc(p.acoff)+'</span>'}
+  if(p.tipo==='anom'){if(p.olre)b+='<span class="chip am">OL/RE '+esc(p.olre)+'</span>';if(p.acon||p.acoff)b+=acChip(p)}
   if(p.lat!==''&&p.lat!=null)b+='<span class="chip ok">'+ic('pin').replace('class="ic"','class="ic" style="width:12px;height:12px"')+'GPS</span>';
   const th=p.fotos.length&&PH[p.fotos[0]]?'<img class="th" src="'+PH[p.fotos[0]].data+'" alt="">':'<div class="th">'+ic('cam')+'</div>';
   h+='<div class="pt" data-a="edit" data-id="'+p.id+'" style="--c:'+T.c+'"><div class="m"><div class="tag">'+T.n+'</div><div><span class="k">PK '+pkTxt(p.pk)+'</span> <span style="color:var(--mu);font-size:13px">'+esc(p.pk)+' m</span></div><div class="d">'+esc(p.desc)+'</div><div class="bd">'+b+'</div></div>'+th+(p.fotos.length>1?'<span class="chip" style="position:absolute;right:8px;bottom:8px;padding:2px 7px">+'+(p.fotos.length-1)+'</span>':'')+'</div>'});
