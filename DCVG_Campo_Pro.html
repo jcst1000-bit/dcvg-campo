@@ -209,7 +209,8 @@ const RECT=['ubicacion','sector','voltage','corriente','pot_on','pot_off','int_o
 function construirPlanilla(E,solo){const meta=E.meta,rows=calcular(E.pts,meta),celdas=[],mp={};
  Object.keys(MAPA).forEach(k=>{mp[MAPA[k][0]+','+MAPA[k][1]]=meta[k]==null||(RECT.indexOf(k)>=0&&!meta.usa_rect)?'':String(meta[k])});
  const mk=(f,c,t,a,bg,fg,sz,ng,br)=>({fila:f,col:c,texto:String(t==null?'':t).toUpperCase(),alineacion:a,color_fondo:bg,color_texto:fg,tamano:sz,negrita:ng,borde:br});
- TPL.h.forEach(c=>{const k=c[0]+','+c[1];celdas.push(mk(c[0],c[1],k in mp?mp[k]:c[2],132,c[4],c[5],c[6],true,c[8]))});
+ const UB=TPL.h.find(x=>x[0]===2&&x[1]===25);
+ TPL.h.forEach(c=>{const k=c[0]+','+c[1],sc=(c[0]===3&&c[1]===25&&UB)?UB:c;celdas.push(mk(c[0],c[1],k in mp?mp[k]:c[2],132,sc[4],c[5],c[6],true,sc[8]))});
  rows.forEach((r,i)=>{const f=8+i,st=TPL.st[r.p.tipo],t=textos(r);if(solo)CALC.forEach(c=>{if(c<24)t[c]=''});
   for(let c=0;c<30;c++){let bg=st[c][0];
    if(!solo&&r.p.tipo==='anom'&&(c===13||c===14)){const o=acColor(r.p.acon,r.p.acoff);if(o)bg=o}
@@ -354,7 +355,7 @@ function rDat(){preparar();let us='';const L=revisar();
  +'<div class="card"><h3>'+ic('db')+'Almacenamiento</h3><div class="ck ok">'+ic('check')+'<div>Versión de la app: <b>'+VER+'</b></div></div><button class="btn sm" style="width:100%;margin-bottom:10px" data-d="upd">'+ic('down')+'Buscar actualización</button><div class="ck ok">'+ic('check')+'<div>Guardado automático en este equipo, sin internet.</div></div><div id="est" class="hint"></div><div class="bar"><i id="estb" style="width:0"></i></div><div style="height:14px"></div><button class="btn bad" data-d="clr">'+ic('trash')+'Borrar toda la inspección</button></div>';
  if(navigator.storage&&navigator.storage.estimate)navigator.storage.estimate().then(s=>{const e=$('est');if(!e)return;e.textContent='Usado '+(s.usage/1048576).toFixed(1)+' MB de '+Math.round(s.quota/1048576)+' MB disponibles';$('estb').style.width=Math.min(100,s.usage/s.quota*100)+'%'})}
 async function generar(SF){const o=construirPlanilla(E,true);
- o.campo={formato:'dcvg_campo',version:4,build:'2026-10-31-b',exportado:new Date().toISOString(),meta:E.meta,puntos:ordenar(E.pts).map(p=>Object.assign({},p,{fotos:p.fotos.map((id,i)=>{const d=(SF||!INC||!PH[id])?'':PH[id].data;return{id:id,archivo:nomFoto(p,i),mime:'image/jpeg',fecha:PH[id]?new Date(PH[id].t).toISOString():'',data:d.split(',')[1]||''}})}))};
+ o.campo={formato:'dcvg_campo',version:4,build:'2026-10-31-c',exportado:new Date().toISOString(),meta:E.meta,puntos:ordenar(E.pts).map(p=>Object.assign({},p,{fotos:p.fotos.map((id,i)=>{const d=(SF||!INC||!PH[id])?'':PH[id].data;return{id:id,archivo:nomFoto(p,i),mime:'image/jpeg',fecha:PH[id]?new Date(PH[id].t).toISOString():'',data:d.split(',')[1]||''}})}))};
  const txt=JSON.stringify(o,null,4),f=(E.meta.fecha||hoy()).split('/').reverse().join('-');return{txt:txt,nom:'DCVG_'+(slug(E.meta.empresa)||'campo')+'_'+f+(SF?'_SINFOTOS':'')+'.json'}}
 function bajar(g){const b=new Blob([g.txt],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=g.nom;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href)},2000)}
 let PRE=null,PRE_F=null,FI=0;
