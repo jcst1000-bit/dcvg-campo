@@ -172,12 +172,11 @@ function gms(v,lat){const h=lat?(v>=0?'N':'S'):(v>=0?'E':'W');const a=Math.abs(v
  const ss=s.toFixed(5);return pad(d,2)+'°'+pad(m,2)+"'"+(ss.indexOf('.')<2?'0'+ss:ss)+'"'+h}
 function pkTxt(pk){const v=$n(pk);if(v==null)return String(pk||'');const t=Math.round(v);return Math.floor(t/1000)+'+'+pad(t%1000,3)}
 const hoy=()=>{const d=new Date();return pad(d.getDate(),2)+'/'+pad(d.getMonth()+1,2)+'/'+d.getFullYear()};
-const defMeta=()=>({fecha:hoy(),empresa:'',proyecto:'',diametro:'',lugar_ini:'',lugar_fin:'',sector_tramo:'',ubicacion:'',sector:'',voltage:'',corriente:'',pot_on:'',pot_off:'',int_on:'',int_off:'',r1:'',r2:'',r3:'',titulo_dcvg:'',titulo_log:'',hito_dcvg:1,hito_consol:1,estampar:true,neg_auto:true,usa_rect:false,usa_res:false,res_tramos:[]});
+const defMeta=()=>({fecha:hoy(),empresa:'',proyecto:'',diametro:'',lugar_ini:'',lugar_fin:'',sector_tramo:'',ubicacion:'',sector:'',voltage:'',corriente:'',pot_on:'',pot_off:'',int_on:'',int_off:'',r1:'',r2:'',r3:'',titulo_dcvg:'',titulo_log:'',hito_dcvg:1,hito_consol:1,estampar:true,neg_auto:true,usa_rect:false,usa_res:false});
 // Posición EXACTA en la planilla (fila,col) de cada dato de cabecera
 const MAPA={fecha:[2,2],empresa:[3,2],proyecto:[4,2],diametro:[2,14],lugar_ini:[3,14],lugar_fin:[4,14],sector_tramo:[5,14],ubicacion:[2,25],sector:[3,25],voltage:[4,25],corriente:[5,25],pot_on:[2,29],pot_off:[3,29],int_on:[4,29],int_off:[5,29]};
 function ordenar(a){const k=p=>{const v=$n(p.pk);return v==null?1e12:v};const i=a.filter(p=>p.tipo==='inicio'),f=a.filter(p=>p.tipo==='fin'),m=a.filter(p=>p.tipo!=='inicio'&&p.tipo!=='fin').sort((x,y)=>k(x)-k(y));return i.concat(m,f)}
 const pick=(a,b)=>($n(a)!=null?a:b);
-function resAtPk(k,meta){let b=meta;if(k==null)return b;(meta.res_tramos||[]).filter(t=>$n(t.pk)!=null).sort((x,y)=>$n(x.pk)-$n(y.pk)).forEach(t=>{if($n(t.pk)<=k)b=Object.assign({},b,{r1:pick(t.r1,b.r1),r2:pick(t.r2,b.r2),r3:pick(t.r3,b.r3)})});return b}
 function calcular(pts,meta){
  const P=ordenar(pts),ini=P.find(p=>p.tipo==='inicio'),fin=P.slice().reverse().find(p=>p.tipo==='fin');
  const tot=p=>{if(!p)return null;const a=$n(p.on),b=$n(p.off);return a==null||b==null?null:Math.abs(a-b)};
@@ -190,7 +189,7 @@ function calcular(pts,meta){
   const k=$n(p.pk);
   if(tI!=null&&tF!=null&&k0!=null&&k1!=null&&k!=null)r.pre=rnd(k1===k0?tI:tI+(tF-tI)*(k-k0)/(k1-k0));
   const ol=$n(p.olre);if(p.tipo==='anom'&&ol!=null&&r.pre)r.pct=ol/r.pre*100;
-  const ur=!!meta.usa_res,rb=resAtPk($n(p.pk),meta),R1=ur?$n(pick(p.r1,rb.r1)):null,R2=ur?$n(pick(p.r2,rb.r2)):null,R3=ur?$n(pick(p.r3,rb.r3)):null,K=2*Math.PI*100;r.R=[R1,R2,R3];
+  const ur=!!meta.usa_res,R1=ur?$n(pick(p.r1,meta.r1)):null,R2=ur?$n(pick(p.r2,meta.r2)):null,R3=ur?$n(pick(p.r3,meta.r3)):null,K=2*Math.PI*100;r.R=[R1,R2,R3];
   if(R1!=null){r.a1=K*1*R1}if(R2!=null){r.a2=K*2*R2}if(R3!=null){r.a3=K*3*R3}
   if(R1!=null&&R2!=null&&R1>R2)r.l12=K*R1*R2/(R1-R2);
   if(R2!=null&&R3!=null&&R2>R3)r.l23=K*R2*R3/(R2-R3);
@@ -300,9 +299,13 @@ function rRec(){const ini=tiene('inicio'),fin=tiene('fin'),rows=calcular(E.pts,E
   +'<div class="stats"><div class="stat"><b>'+E.pts.length+'</b><span>Puntos</span></div><div class="stat"><b>'+an+'</b><span>Anomalías</span></div><div class="stat"><b>'+nFotos()+'</b><span>Fotos</span></div><div class="stat"><b>'+E.pts.filter(p=>p.lat!==''&&p.lat!=null).length+'</b><span>Con GPS</span></div></div></div>'
   +'<div class="card">'+a+(ini&&!fin?'<div style="height:8px"></div><button class="btn bad sm" style="width:100%" data-a="cancel">'+ic('x')+'Cancelar inspección</button>':'')+'</div>';
  if(!rows.length)h+='<div class="empty">Aún no hay puntos.<br>Complete la <b>Info General</b> y toque “Iniciar inspección”.</div>';
- rows.forEach(r=>{const p=r.p,T=TIPOS[p.tipo];let b='';if(p.tipo==='anom')b+=r.pct!=null?'<span class="irb" style="background:'+irColor(r.pct)+';color:'+(r.pct>60||r.pct<=15?'#fff':'#000')+'">% IR '+r.pct.toFixed(2)+'%</span>':'<span class="irb" style="background:#333;color:#fff">% IR pendiente</span>';
-  if(p.on!==''||p.off!=='')b+='<span class="chip">ON '+esc(p.on)+' / OFF '+esc(p.off)+'</span>';
-  if(p.tipo==='anom'){if(p.olre)b+='<span class="chip am">OL/RE '+esc(p.olre)+'</span>';if(p.acon||p.acoff)b+=acChip(p)}
+ rows.forEach(r=>{const p=r.p,T=TIPOS[p.tipo];let b='';const onoff=(p.on!==''||p.off!=='')?'<span class="chip">ON '+esc(p.on)+' / OFF '+esc(p.off)+'</span>':'';
+  if(p.tipo==='anom'){
+   if(p.acon||p.acoff)b+=acChip(p);
+   if(p.olre)b+='<span class="chip am">OL/RE '+esc(p.olre)+'</span>';
+   b+=r.pct!=null?'<span class="irb" style="background:'+irColor(r.pct)+';color:'+(r.pct>60||r.pct<=15?'#fff':'#000')+'">% SEVERIDAD '+r.pct.toFixed(2).replace('.',',')+'%</span>':'<span class="irb" style="background:#333;color:#fff">% SEVERIDAD pendiente</span>';
+   b+=onoff}
+  else b+=onoff;
   if(p.lat!==''&&p.lat!=null)b+='<span class="chip ok">'+ic('pin').replace('class="ic"','class="ic" style="width:12px;height:12px"')+'GPS</span>';
   const th=p.fotos.length&&PH[p.fotos[0]]?'<img class="th" src="'+PH[p.fotos[0]].data+'" alt="">':'<div class="th">'+ic('cam')+'</div>';
   h+='<div class="pt" data-a="edit" data-id="'+p.id+'" style="--c:'+T.c+'"><div class="m"><div class="tag">'+T.n+'</div><div><span class="k">PK '+pkTxt(p.pk)+'</span> <span style="color:var(--mu);font-size:13px">'+esc(p.pk)+' m</span></div><div class="d">'+esc(p.desc)+'</div><div class="bd">'+b+'</div></div>'+th+(p.fotos.length>1?'<span class="chip" style="position:absolute;right:8px;bottom:8px;padding:2px 7px">+'+(p.fotos.length-1)+'</span>':'')+'</div>'});
@@ -313,18 +316,15 @@ $('v-rec').onclick=e=>{const b=e.target.closest('[data-a]');if(!b)return;if(b.da
 const iso=d=>{const m=/^(\d\d)\/(\d\d)\/(\d{4})$/.exec(d||'');return m?m[3]+'-'+m[2]+'-'+m[1]:''};
 function fld(k,l,o){o=o||{};const m=E.meta;return '<label>'+l+'</label><input class="t" data-m="'+k+'" value="'+esc(m[k])+'"'+(o.num?' inputmode="decimal"':'')+(o.ph?' placeholder="'+o.ph+'"':'')+'>'}
 function sw(k,t,sm){return '<div class="sw" style="border:0;padding:0"><span><b>'+t+'</b><small>'+sm+'</small></span><input type="checkbox" class="tg" data-p="'+k+'" '+(E.meta[k]?'checked':'')+'></div>'}
-function resTr(){const a=E.meta.res_tramos||[];return '<div class="hint" style="margin-top:12px"><b>Nuevas mediciones a lo largo del recorrido</b><br>Indique el PK donde empieza a regir cada una; aplica hasta la siguiente o hasta el final.</div>'+a.map((t,i)=>'<div class="card" style="margin:8px 0;padding:10px"><label style="margin-top:0">Desde PK (m)</label><div class="row"><input inputmode="decimal" data-rt="'+i+'" data-f="pk" value="'+esc(t.pk)+'"><button class="btn bad sm" data-rtd="'+i+'">'+ic('trash')+'</button></div><div class="g3">'+['r1','r2','r3'].map((k,j)=>'<div><label>R ('+(j+1)+'M) Ω</label><input inputmode="decimal" data-rt="'+i+'" data-f="'+k+'" value="'+esc(t[k])+'"></div>').join('')+'</div></div>').join('')+'<button class="btn sm" style="width:100%;margin-top:8px" data-rta="1">'+ic('plus')+'Agregar medición de resistividad</button>'}
 function rCab(){const m=E.meta;
  $('v-cab').innerHTML='<div class="card"><h3>'+ic('sl')+'Identificación</h3><label>Fecha</label><input class="t" type="date" id="mf" value="'+iso(m.fecha)+'">'+fld('empresa','Empresa')+fld('proyecto','Proyecto')+fld('diametro','Diámetro')+'</div>'
  +'<div class="card"><h3>'+ic('pin')+'Tramo</h3>'+fld('lugar_ini','Lugar inicial')+fld('lugar_fin','Lugar final')+fld('sector_tramo','Sector (tramo)')+'</div>'
  +'<div class="card">'+sw('usa_rect','CAMA TEMPORAL','Active solo si aplica en esta inspección')+(m.usa_rect?fld('ubicacion','Ubicación')+fld('sector','Sector (ubicación)')+'<div class="g2"><div>'+fld('voltage','Voltage DC',{num:1})+'</div><div>'+fld('corriente','Corriente DC',{num:1})+'</div><div>'+fld('pot_on','Potencial ON',{num:1})+'</div><div>'+fld('pot_off','Potencial OFF',{num:1})+'</div><div>'+fld('int_on','Interrupción ON (seg)',{num:1})+'</div><div>'+fld('int_off','Interrupción OFF (seg)',{num:1})+'</div></div>':'')+'</div>'
- +'<div class="card">'+sw('usa_res','Resistividad del suelo','Active solo si midió resistividad')+(m.usa_res?'<div class="g3"><div>'+fld('r1','R (1M) Ω',{num:1})+'</div><div>'+fld('r2','R (2M) Ω',{num:1})+'</div><div>'+fld('r3','R (3M) Ω',{num:1})+'</div></div><div class="hint">Estos valores aplican desde el inicio. Los resultados se ven calculados en la Planilla.</div>'+resTr():'')+'</div>'
+ +'<div class="card">'+sw('usa_res','Resistividad del suelo','Active solo si midió resistividad')+(m.usa_res?'<div class="g3"><div>'+fld('r1','R (1M) Ω',{num:1})+'</div><div>'+fld('r2','R (2M) Ω',{num:1})+'</div><div>'+fld('r3','R (3M) Ω',{num:1})+'</div></div><div class="hint">Los resultados se ven calculados en la Planilla.</div>':'')+'</div>'
  +'<div class="card"><h3>'+ic('cam')+'Preferencias</h3><div class="sw"><span>Potenciales siempre negativos<small>Un 994 escrito se guarda como -994</small></span><input type="checkbox" class="tg" data-p="neg_auto" '+(m.neg_auto?'checked':'')+'></div><div class="sw"><span>Estampar PK, fecha y GPS en las fotos<small>Queda grabado en la imagen</small></span><input type="checkbox" class="tg" data-p="estampar" '+(m.estampar?'checked':'')+'></div></div>'}
 $('v-cab').addEventListener('input',e=>{const t=e.target;if(t.dataset.m){const k=t.dataset.m;if(t.type==='text')up(t);E.meta[k]=(k==='hito_dcvg'||k==='hito_consol')?(parseFloat(String(t.value).replace(',','.'))||1):t.value;persist();$('sub').textContent=[E.meta.empresa,E.meta.proyecto].filter(Boolean).join(' · ')||'Inspección DCVG'}
  if(t.id==='mf'){const v=t.value;E.meta.fecha=v?v.slice(8,10)+'/'+v.slice(5,7)+'/'+v.slice(0,4):'';persist()}});
 $('v-cab').addEventListener('focusin',e=>{const t=e.target;if(t.dataset.m!=='ubicacion'||t.value.trim())return;if(!FIX){toast('Aún sin señal GPS: espere un momento y toque de nuevo');return}const v=gms(FIX.lat,true)+' '+gms(FIX.lon,false);t.value=v;E.meta.ubicacion=v;persist();vib()});
-$('v-cab').addEventListener('input',e=>{const t=e.target;if(t.dataset.rt==null)return;const r=(E.meta.res_tramos||[])[+t.dataset.rt];if(r){r[t.dataset.f]=t.value;persist()}});
-$('v-cab').addEventListener('click',e=>{const b=e.target.closest('[data-rta],[data-rtd]');if(!b)return;E.meta.res_tramos=E.meta.res_tramos||[];if(b.dataset.rta){const v=E.pts.map(p=>$n(p.pk)).filter(x=>x!=null);E.meta.res_tramos.push({pk:v.length?String(Math.max.apply(null,v)):'',r1:'',r2:'',r3:''})}else E.meta.res_tramos.splice(+b.dataset.rtd,1);persist();rCab();noAuto()});
 $('v-cab').addEventListener('change',e=>{const t=e.target;if(t.dataset.p){E.meta[t.dataset.p]=t.checked;persist();if(t.dataset.p==='usa_rect'||t.dataset.p==='usa_res'){rCab();noAuto()}}});
 
 /* ---------- PLANILLA (vista previa idéntica a lo que se exporta) ---------- */
@@ -349,7 +349,6 @@ function revisar(){const L=[],rows=calcular(E.pts,E.meta),P=E.pts;
  const sp=P.filter(p=>(p.tipo==='inicio'||p.tipo==='pot'||p.tipo==='fin')&&($n(p.on)==null||$n(p.off)==null)).length;if(sp)L.push(['am',sp+' punto(s) de potencial sin ON u OFF']);
  const so=P.filter(p=>p.tipo==='anom'&&$n(p.olre)==null).length;if(so)L.push(['am',so+' anomalía(s) sin OL/RE (no se calcula % IR)']);
  if(E.meta.usa_res)L.push($n(E.meta.r1)!=null&&$n(E.meta.r2)!=null&&$n(E.meta.r3)!=null?['ok','Resistividad R1/R2/R3 cargada']:['am','Faltan R (1M/2M/3M) en Info General']);
- if(E.meta.usa_res&&(E.meta.res_tramos||[]).some(t=>$n(t.pk)==null||$n(t.r1)==null||$n(t.r2)==null||$n(t.r3)==null))L.push(['am','Hay mediciones de resistividad incompletas (PK o R)']);
  if(!E.meta.empresa||!E.meta.proyecto)L.push(['am','Info General incompleta (empresa / proyecto)']);return L}
 const slug=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,28);
 const nomFoto=(p,i)=>'PK'+pkTxt(p.pk).replace('+','_')+'_'+(slug(p.desc)||p.tipo)+'_'+(i+1)+'.jpg';
@@ -448,7 +447,7 @@ function abrir(tipo,id,draft){
  if(draft){D=draft.D;EDIT=draft.EDIT;ADDED=draft.ADDED||[];REMOVED=draft.REMOVED||[]}
  else if(id){const p=E.pts.find(x=>x.id===id);EDIT=id;D=JSON.parse(JSON.stringify(p))}
  else{EDIT=null;const nA=E.pts.filter(p=>p.tipo==='anom').length+1;
-  D={id:uid(),tipo:tipo,desc:tipo==='inicio'?'INICIO':tipo==='fin'?'FIN':tipo==='anom'?'ANOMALÍA '+nA:'',pk:tipo==='inicio'?'0':'',on:'',off:'',n:'',s:'',e:'',o:'',olre:'',acon:'',acoff:'',lat:'',lon:'',acc:'',r1:'',r2:'',r3:'',nota:'',fotos:[],t:Date.now()}}
+  D={id:uid(),tipo:tipo,desc:tipo==='inicio'?'INICIO':tipo==='fin'?'FIN':tipo==='anom'?'ANOMALÍA '+nA:tipo==='pot'?'PK SIN MARCA':'',pk:tipo==='inicio'?'0':'',on:'',off:'',n:'',s:'',e:'',o:'',olre:'',acon:'',acoff:'',lat:'',lon:'',acc:'',r1:'',r2:'',r3:'',nota:'',fotos:[],t:Date.now()}}
  pintarEd();$('sheet').classList.add('on');
  if(!id&&!draft)aplicarFix(true);gpsEstado();}
 let FIX=null,GPSERR=null,GW=null;
@@ -471,7 +470,7 @@ function pintarEd(){const T=TIPOS[D.tipo],t=D.tipo;let h='';
   h+='<label>Fotografías <span id="fc"></span></label><div class="g2"><button class="btn pri" data-f="cam">'+ic('cam')+'Tomar foto</button><button class="btn" data-f="gal">'+ic('img')+'Galería</button></div><div class="ph" id="ph"></div>';
  h+='<label>Coordenadas GPS</label><div class="g2"><input id="e_lat" class="t" inputmode="decimal" data-k="lat" placeholder="Latitud" value="'+esc(D.lat)+'"><input id="e_lon" class="t" inputmode="decimal" data-k="lon" placeholder="Longitud" value="'+esc(D.lon)+'"></div><div style="height:8px"></div><button class="btn sm" data-f="gps">'+ic('gps')+'Actualizar GPS</button>';
  h+='<label>Nota</label><textarea id="e_nota" data-k="nota" rows="2" placeholder="Observaciones (opcional)">'+esc(D.nota)+'</textarea>';
- if(E.meta.usa_res)h+='<details style="margin-top:10px"><summary style="color:var(--mu);font-size:13px;cursor:pointer">Resistividad propia de este punto (opcional)</summary><div class="g3">'+['r1','r2','r3'].map((k,i)=>'<div><label>R ('+(i+1)+'M)</label><input class="t" inputmode="decimal" data-k="'+k+'" placeholder="'+esc(resAtPk($n(D.pk),E.meta)[k])+'" value="'+esc(D[k])+'"></div>').join('')+'</div></details>';
+ if(E.meta.usa_res)h+='<details style="margin-top:10px"><summary style="color:var(--mu);font-size:13px;cursor:pointer">Resistividad propia de este punto (opcional)</summary><div class="g3">'+['r1','r2','r3'].map((k,i)=>'<div><label>R ('+(i+1)+'M)</label><input class="t" inputmode="decimal" data-k="'+k+'" placeholder="'+esc(E.meta[k])+'" value="'+esc(D[k])+'"></div>').join('')+'</div></details>';
  $('sb').innerHTML=h;vocObs();
  $('sf').innerHTML='<div class="g2" style="grid-template-columns:'+(EDIT?'auto 1fr 1.4fr':'1fr 1.4fr')+'">'+(EDIT?'<button class="btn bad sm" data-s="del">'+ic('trash')+'</button>':'')+'<button class="btn" data-s="cancel">Cancelar</button><button class="btn ok" data-s="ok">'+ic('check')+'Guardar</button></div>'+((!EDIT&&(t==='pot'||t==='anom'||t==='marca'))?'<div style="height:8px"></div><button class="btn sm" style="width:100%" data-s="okn">'+ic('plus')+'Guardar y agregar otro</button>':'');
  fotos();vivo();noAuto();$('sb').scrollTop=0}
