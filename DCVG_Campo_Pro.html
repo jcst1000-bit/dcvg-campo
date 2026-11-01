@@ -410,13 +410,21 @@ async function importar(txt){let o;try{o=JSON.parse(txt.replace(/^\uFEFF/,''))}c
 const MARCAS=['VÁLVULA','CRUCE DE VÍA','CAJA ÁNODOS','CRUCE DE RÍO','POSTE','CERCA','TEST POINT','CASETA'];
 /* ---------- VOCABULARIO de marcas: aprende solo; los óvalos son los más usados ---------- */
 const VOC_KEY='dcvg_vocab_v1',VOC_TOP=24,VOC_ROWS=3,VOC_MAX=200;
-let VOC=null,VOC_OPEN=false,VOC_RO=null;
+let VOC=null,VOC_T=0,VOC_OPEN=false,VOC_RO=null;
 const vocSin=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const vocClean=s=>String(s||'').toUpperCase().replace(/\s+/g,' ').trim();
 const vocBase=s=>vocClean(s).replace(/[\s#\-–_.:]+(?:N[º°]?\s*)?\d+[A-Z]?$/,'').trim();
-function vocLoad(){if(VOC)return VOC;let v=null;try{v=JSON.parse(localStorage.getItem(VOC_KEY)||'null')}catch(e){}
- VOC=Array.isArray(v)&&v.length?v.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&x[0]).map(x=>[x[0],Math.max(0,+x[1]||0)]):MARCAS.map(m=>[m,0]);return VOC}
-function vocSave(){try{localStorage.setItem(VOC_KEY,JSON.stringify(VOC))}catch(e){}}
+function vocParse(v){if(Array.isArray(v))v={t:0,w:v};if(!v||!Array.isArray(v.w))return null;
+ const w=v.w.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&x[0]).map(x=>[x[0],Math.max(0,+x[1]||0)]);return w.length?{t:+v.t||0,w:w}:null}
+function vocLoad(){if(VOC)return VOC;let o=null;try{o=vocParse(JSON.parse(localStorage.getItem(VOC_KEY)||'null'))}catch(e){}
+ VOC=o?o.w:MARCAS.map(m=>[m,0]);VOC_T=o?o.t:0;return VOC}
+function vocSave(){VOC_T=Date.now();const o={t:VOC_T,w:VOC};
+ try{localStorage.setItem(VOC_KEY,JSON.stringify(o))}catch(e){}
+ try{DB.put('kv','vocab',o).catch(()=>{})}catch(e){}}
+async function vocSync(){try{const d=vocParse(await DB.get('kv','vocab'));vocLoad();
+  if(d&&d.t>VOC_T){VOC=d.w;VOC_T=d.t;try{localStorage.setItem(VOC_KEY,JSON.stringify({t:VOC_T,w:VOC}))}catch(e){}}
+  else if(!d||d.t<VOC_T){DB.put('kv','vocab',{t:VOC_T,w:VOC}).catch(()=>{})}
+  vocPaint()}catch(e){}}
 function vocAdd(w,n){w=vocClean(w);if(w.length<2||w.length>40)return null;vocLoad();const k=vocSin(w),it=VOC.find(x=>vocSin(x[0])===k);let nuevo=false;
  if(it)it[1]+=n;else{VOC.push([w,n]);nuevo=true}
  while(VOC.length>VOC_MAX){let m=0;for(let i=1;i<VOC.length;i++)if(VOC[i][1]<VOC[m][1])m=i;VOC.splice(m,1)}
@@ -522,6 +530,7 @@ $('fCam').onchange=foto;$('fGal').onchange=foto;
 (async function(){
  const ok=await DB.open();let s=null;
  if(ok){try{s=await DB.get('kv','estado');(await DB.all('fotos')).forEach(f=>{PH[f[0]]=f[1]})}catch(e){}}
+ vocSync();
  try{const l=JSON.parse(localStorage.getItem('dcvg_estado_v4')||'null');if(l&&l.pts&&(!s||(l._ts||0)>(s._ts||0)))s=l}catch(e){}
  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
  E=s||{v:4,meta:defMeta(),pts:[]};E.meta=Object.assign(defMeta(),E.meta);E.pts.forEach(p=>{p.fotos=p.fotos||[]});upAll();
