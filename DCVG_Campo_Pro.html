@@ -76,7 +76,7 @@ input.t{font-size:16px}textarea{font-size:15px;resize:vertical}
 .x{width:42px;height:42px;border-radius:13px;background:var(--card2);display:grid;place-items:center;border:1px solid var(--bd);flex:none}
 .pm{width:56px;border-radius:13px;background:var(--card2);font-weight:800;font-size:20px;border:1.5px solid var(--bd)}
 .qk{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}.qk button,.qc button{background:var(--card2);border:1px solid var(--bd);padding:8px 13px;border-radius:99px;font-size:13px;font-weight:700}
-.qc{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.qc{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}.qc .vcx{width:38px;height:38px;padding:0;display:grid;place-items:center;margin-left:auto}.vcx svg{width:18px;height:18px;transition:transform .2s}.vcx[aria-expanded=true] svg{transform:rotate(180deg)}.vcp{margin-top:10px;padding:10px;border-radius:16px;background:var(--card);border:2px solid var(--bd)}.vw{display:inline-flex;align-items:stretch}.qc .vw .mc{border-radius:99px 0 0 99px;border-right-width:0}.qc .vw .vd{border-radius:0 99px 99px 0;padding:8px 11px;color:var(--mu)}.vca{display:flex;gap:8px;margin-top:12px;align-items:stretch}.vca input{flex:1;min-width:0;font-size:16px;padding:9px 12px}.vca .btn{width:auto;flex:none;padding:0 16px}
 .live{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
 .live div{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:8px 4px;text-align:center}
 .live small{display:block;font-size:10.5px;color:var(--mu);letter-spacing:.5px}.live b{font-size:19px}
@@ -279,7 +279,7 @@ function toast(t,ms){const e=$('toast');e.textContent=t;e.classList.add('on');cl
 const vib=n=>{try{navigator.vibrate&&navigator.vibrate(n||12)}catch(e){}};
 
 /* ---------- navegación ---------- */
-const TABS=[['rec','list','Recorrido'],['cab','sl','Cabecera'],['pla','tbl','Planilla'],['dat','db','Datos']];
+const TABS=[['rec','list','Recorrido'],['cab','sl','Info General'],['pla','tbl','Planilla'],['dat','db','Datos']];
 function ir(v){VIEW=v;document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));render();scrollTo(0,0)}
 function renderTabs(){$('tabs').innerHTML=TABS.map(t=>'<button data-v="'+t[0]+'" class="'+(VIEW===t[0]?'on':'')+'">'+ic(t[1])+t[2]+'</button>').join('')}
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(b)ir(b.dataset.v)};
@@ -298,7 +298,7 @@ function rRec(){const ini=tiene('inicio'),fin=tiene('fin'),rows=calcular(E.pts,E
  let h='<div class="card hero"><div class="lb">'+(!ini?'Sin iniciar':fin?'Finalizada':'En recorrido')+' · último PK</div><div class="pk">'+(last==null?'—':pkTxt(last))+'<small style="font-size:15px;color:var(--mu);font-weight:600"> '+(last==null?'':last+' m')+'</small></div>'
   +'<div class="stats"><div class="stat"><b>'+E.pts.length+'</b><span>Puntos</span></div><div class="stat"><b>'+an+'</b><span>Anomalías</span></div><div class="stat"><b>'+nFotos()+'</b><span>Fotos</span></div><div class="stat"><b>'+E.pts.filter(p=>p.lat!==''&&p.lat!=null).length+'</b><span>Con GPS</span></div></div></div>'
   +'<div class="card">'+a+(ini&&!fin?'<div style="height:8px"></div><button class="btn bad sm" style="width:100%" data-a="cancel">'+ic('x')+'Cancelar inspección</button>':'')+'</div>';
- if(!rows.length)h+='<div class="empty">Aún no hay puntos.<br>Complete la <b>Cabecera</b> y toque “Iniciar inspección”.</div>';
+ if(!rows.length)h+='<div class="empty">Aún no hay puntos.<br>Complete la <b>Info General</b> y toque “Iniciar inspección”.</div>';
  rows.forEach(r=>{const p=r.p,T=TIPOS[p.tipo];let b='';if(p.tipo==='anom')b+=r.pct!=null?'<span class="irb" style="background:'+irColor(r.pct)+';color:'+(r.pct>60||r.pct<=15?'#fff':'#000')+'">% IR '+r.pct.toFixed(2)+'%</span>':'<span class="irb" style="background:#333;color:#fff">% IR pendiente</span>';
   if(p.on!==''||p.off!=='')b+='<span class="chip">ON '+esc(p.on)+' / OFF '+esc(p.off)+'</span>';
   if(p.tipo==='anom'){if(p.olre)b+='<span class="chip am">OL/RE '+esc(p.olre)+'</span>';if(p.acon||p.acoff)b+=acChip(p)}
@@ -344,8 +344,8 @@ function revisar(){const L=[],rows=calcular(E.pts,E.meta),P=E.pts;
  const sg=P.filter(p=>p.lat===''||p.lat==null).length;L.push(sg?['am',sg+' punto(s) sin coordenadas GPS']:['ok','Todos los puntos tienen GPS']);
  const sp=P.filter(p=>(p.tipo==='inicio'||p.tipo==='pot'||p.tipo==='fin')&&($n(p.on)==null||$n(p.off)==null)).length;if(sp)L.push(['am',sp+' punto(s) de potencial sin ON u OFF']);
  const so=P.filter(p=>p.tipo==='anom'&&$n(p.olre)==null).length;if(so)L.push(['am',so+' anomalía(s) sin OL/RE (no se calcula % IR)']);
- if(E.meta.usa_res)L.push($n(E.meta.r1)!=null&&$n(E.meta.r2)!=null&&$n(E.meta.r3)!=null?['ok','Resistividad R1/R2/R3 cargada']:['am','Faltan R (1M/2M/3M) en Cabecera']);
- if(!E.meta.empresa||!E.meta.proyecto)L.push(['am','Cabecera incompleta (empresa / proyecto)']);return L}
+ if(E.meta.usa_res)L.push($n(E.meta.r1)!=null&&$n(E.meta.r2)!=null&&$n(E.meta.r3)!=null?['ok','Resistividad R1/R2/R3 cargada']:['am','Faltan R (1M/2M/3M) en Info General']);
+ if(!E.meta.empresa||!E.meta.proyecto)L.push(['am','Info General incompleta (empresa / proyecto)']);return L}
 const slug=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,28);
 const nomFoto=(p,i)=>'PK'+pkTxt(p.pk).replace('+','_')+'_'+(slug(p.desc)||p.tipo)+'_'+(i+1)+'.jpg';
 let INC=false;
@@ -354,7 +354,7 @@ function rDat(){preparar();let us='';const L=revisar();
  +'<div class="sw" style="margin-top:6px"><span>Incluir fotos dentro del JSON<small>Recomendado apagado: las fotos se envían aparte con Compartir fotos.</small></span><input type="checkbox" class="tg" id="inc" '+(INC?'checked':'')+'></div>'
  +'<div style="height:6px"></div><button class="btn pri" data-d="share">'+ic('share')+'Compartir JSON</button><div style="height:8px"></div><div class="g2"><button class="btn sm" style="width:100%" data-d="fotos">'+ic('cam')+'Compartir fotos</button><button class="btn sm" style="width:100%" data-d="sh-txt">JSON como .txt</button></div><div style="height:8px"></div><button class="btn" data-d="down">'+ic('down')+'Guardar JSON en el equipo</button><div class="hint" id="xi"></div></div>'
  +'<div class="card"><h3>'+ic('up')+'Importar / continuar</h3><button class="btn" data-d="imp">'+ic('up')+'Cargar archivo .json</button><label>…o pegue el texto recibido</label><textarea id="pas" rows="3" placeholder="Pegue aquí el JSON"></textarea><div style="height:8px"></div><button class="btn sm" data-d="pimp">Importar texto pegado</button><div class="hint">Acepta el archivo creado por esta app (recupera todo, incluidas las fotos) o la planilla DCVG en el mismo formato de su proyecto.</div></div>'
- +'<div class="card"><h3>'+ic('play')+'Nueva inspección</h3><button class="btn am" data-d="nueva">'+ic('plus')+'Crear nueva inspección</button><div class="hint">Borra puntos, fotos y cabecera para empezar de cero. Exporte antes.</div></div>'
+ +'<div class="card"><h3>'+ic('play')+'Nueva inspección</h3><button class="btn am" data-d="nueva">'+ic('plus')+'Crear nueva inspección</button><div class="hint">Borra puntos, fotos e info general para empezar de cero. Exporte antes.</div></div>'
  +'<div class="card"><h3>'+ic('db')+'Almacenamiento</h3><div class="ck ok">'+ic('check')+'<div>Versión de la app: <b>'+VER+'</b></div></div><button class="btn sm" style="width:100%;margin-bottom:10px" data-d="upd">'+ic('down')+'Buscar actualización</button><div class="ck ok">'+ic('check')+'<div>Guardado automático en este equipo, sin internet.</div></div><div id="est" class="hint"></div><div class="bar"><i id="estb" style="width:0"></i></div><div style="height:14px"></div><button class="btn bad" data-d="clr">'+ic('trash')+'Borrar toda la inspección</button></div>';
  if(navigator.storage&&navigator.storage.estimate)navigator.storage.estimate().then(s=>{const e=$('est');if(!e)return;e.textContent='Usado '+(s.usage/1048576).toFixed(1)+' MB de '+Math.round(s.quota/1048576)+' MB disponibles';$('estb').style.width=Math.min(100,s.usage/s.quota*100)+'%'})}
 async function generar(SF){const o=construirPlanilla(E,true);
@@ -387,9 +387,9 @@ async function accionDatos(a){
  if(a==='imp')$('fImp').click();
  if(a==='pimp'){const t=$('pas').value.trim();if(!t){toast('Pegue primero el texto');return}importar(t)}
  if(a==='clr'){if(confirm('¿Borrar TODA la inspección y las fotos de este equipo?\nExporte antes si no tiene respaldo.')){await limpiarTodo();toast('Inspección borrada');render()}}}
-async function cancelarInsp(){if(!confirm('¿CANCELAR la inspección en curso?\n\nSe descartan todos los puntos y fotos registrados. La cabecera se conserva.'))return;await DB.clear('fotos');PH={};E.pts=[];await flush();ir('rec');toast('Inspección cancelada')}
+async function cancelarInsp(){if(!confirm('¿CANCELAR la inspección en curso?\n\nSe descartan todos los puntos y fotos registrados. La info general se conserva.'))return;await DB.clear('fotos');PH={};E.pts=[];await flush();ir('rec');toast('Inspección cancelada')}
 async function limpiarTodo(){clearTimeout(dt);clearTimeout(tm);await DB.clear('fotos');try{await DB.del('kv','borrador')}catch(e){}PH={};const pr={neg_auto:E.meta.neg_auto,estampar:E.meta.estampar};E={v:4,meta:Object.assign(defMeta(),pr),pts:[]};D=null;EDIT=null;ADDED=[];REMOVED=[];PZ=null;INC=false;$('sheet').classList.remove('on');await flush()}
-async function nueva(){if(!confirm('¿Iniciar una NUEVA inspección?\n\nSe borra TODO: puntos, fotos, cabecera, resistividades y planilla. Asegúrese de haber exportado el archivo.'))return;await limpiarTodo();ir('rec');toast('Nueva inspección limpia')}
+async function nueva(){if(!confirm('¿Iniciar una NUEVA inspección?\n\nSe borra TODO: puntos, fotos, info general, resistividades y planilla. Asegúrese de haber exportado el archivo.'))return;await limpiarTodo();ir('rec');toast('Nueva inspección limpia')}
 $('v-dat').onclick=e=>{const b=e.target.closest('[data-d]');if(b)accionDatos(b.dataset.d)};
 $('v-dat').addEventListener('change',e=>{if(e.target.id==='inc'){INC=e.target.checked;preparar()}});
 $('fImp').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;importar(await f.text())};
@@ -404,6 +404,40 @@ async function importar(txt){let o;try{o=JSON.parse(txt.replace(/^\uFEFF/,''))}c
 
 /* ---------- EDITOR DE PUNTO ---------- */
 const MARCAS=['VÁLVULA','CRUCE DE VÍA','CAJA ÁNODOS','CRUCE DE RÍO','POSTE','CERCA','TEST POINT','CASETA'];
+/* ---------- VOCABULARIO de marcas: aprende solo; los óvalos son los más usados ---------- */
+const VOC_KEY='dcvg_vocab_v1',VOC_TOP=24,VOC_ROWS=3,VOC_MAX=200;
+let VOC=null,VOC_OPEN=false,VOC_RO=null;
+const vocSin=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const vocClean=s=>String(s||'').toUpperCase().replace(/\s+/g,' ').trim();
+const vocBase=s=>vocClean(s).replace(/[\s#\-–_.:]+(?:N[º°]?\s*)?\d+[A-Z]?$/,'').trim();
+function vocLoad(){if(VOC)return VOC;let v=null;try{v=JSON.parse(localStorage.getItem(VOC_KEY)||'null')}catch(e){}
+ VOC=Array.isArray(v)&&v.length?v.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&x[0]).map(x=>[x[0],Math.max(0,+x[1]||0)]):MARCAS.map(m=>[m,0]);return VOC}
+function vocSave(){try{localStorage.setItem(VOC_KEY,JSON.stringify(VOC))}catch(e){}}
+function vocAdd(w,n){w=vocClean(w);if(w.length<2||w.length>40)return null;vocLoad();const k=vocSin(w),it=VOC.find(x=>vocSin(x[0])===k);let nuevo=false;
+ if(it)it[1]+=n;else{VOC.push([w,n]);nuevo=true}
+ while(VOC.length>VOC_MAX){let m=0;for(let i=1;i<VOC.length;i++)if(VOC[i][1]<VOC[m][1])m=i;VOC.splice(m,1)}
+ vocSave();return{w:it?it[0]:w,nuevo:nuevo}}
+function vocLearn(d){const w=vocBase(d);if(w)vocAdd(w,1)}
+function vocAll(){return vocLoad().map((x,i)=>[x,i]).sort((a,b)=>b[0][1]-a[0][1]||a[1]-b[1]).map(x=>x[0])}
+function vocHtml(){const all=vocAll(),top=all.slice(0,VOC_TOP);
+ let h='<div class="qc">'+top.map(x=>'<button data-mc="'+esc(x[0])+'">'+esc(x[0])+'</button>').join('')
+ +'<button class="vcx" data-vx="1" title="Ver todo el vocabulario" aria-label="Ver todo el vocabulario" aria-expanded="'+VOC_OPEN+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button></div>';
+ if(VOC_OPEN)h+='<div class="vcp"><div class="hint" style="margin:0 0 8px">Vocabulario · de la más usada a la menos usada. Toque una palabra para ponerla; la × la quita.</div><div class="qc" style="margin-top:0">'
+ +all.map(x=>'<span class="vw"><button class="mc" data-mc="'+esc(x[0])+'">'+esc(x[0])+'</button><button class="vd" data-vd="'+esc(x[0])+'" aria-label="Quitar '+esc(x[0])+'">×</button></span>').join('')
+ +'</div><div class="vca"><input id="vc_new" class="t" autocomplete="off" placeholder="Palabra nueva"><button class="btn pri" data-va="1">Agregar</button></div></div>';
+ return h}
+function vocFit(){const c=$('vc');if(!c)return;const row=c.firstElementChild;if(!row||!row.classList.contains('qc')||!row.getBoundingClientRect().width)return;
+ const ch=[...row.querySelectorAll('button[data-mc]')];ch.forEach(b=>b.style.display='none');
+ const filas=()=>new Set([...row.children].filter(e=>e.style.display!=='none').map(e=>Math.round(e.getBoundingClientRect().top))).size;
+ for(const b of ch){b.style.display='';if(filas()>VOC_ROWS)b.style.display='none'}}
+function vocObs(){const c=$('vc');if(!c)return;vocFit();if(VOC_RO){VOC_RO.disconnect();VOC_RO=null}
+ if(window.ResizeObserver){let w0=-1;VOC_RO=new ResizeObserver(()=>{const w=c.getBoundingClientRect().width;if(w&&w!==w0){w0=w;vocFit()}});VOC_RO.observe(c)}}
+function vocPaint(){const c=$('vc');if(!c)return;c.innerHTML=vocHtml();vocFit();if(VOC_OPEN){try{c.scrollIntoView({block:'nearest',behavior:'smooth'})}catch(e){}}}
+function vocPoner(w){D.desc=w;$('e_desc').value=w;guardarBorrador()}
+function vocAgregar(){const i=$('vc_new');if(!i)return;const r=vocAdd(i.value,0);if(!r){toast('Escriba una palabra (2 a 40 letras)');return}
+ vocPoner(r.w);VOC_OPEN=false;vocPaint();toast(r.nuevo?'Palabra agregada al vocabulario':'Esa palabra ya estaba en el vocabulario');vib()}
+$('sb').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='vc_new'){e.preventDefault();vocAgregar()}});
+
 function abrir(tipo,id,draft){
  ADDED=[];REMOVED=[];
  if(draft){D=draft.D;EDIT=draft.EDIT;ADDED=draft.ADDED||[];REMOVED=draft.REMOVED||[]}
@@ -425,7 +459,7 @@ function pintarEd(){const T=TIPOS[D.tipo],t=D.tipo;let h='';
  const ult=E.pts.filter(p=>p.id!==D.id).map(p=>$n(p.pk)).filter(v=>v!=null);
  h+='<label>PK · distancia (metros)</label><input id="e_pk" inputmode="decimal" autocomplete="off" data-k="pk" value="'+esc(D.pk)+'"><div class="hint">'+(ult.length?'Último PK registrado: '+Math.max.apply(null,ult)+' m':'Primer punto')+' · <b id="pkx">'+pkTxt(D.pk)+'</b></div>';
  h+='<label>Descripción</label><input id="e_desc" class="t" data-k="desc" autocomplete="off" value="'+esc(D.desc)+'">';
- if(t==='marca')h+='<div class="qc">'+MARCAS.map(m=>'<button data-mc="'+m+'">'+m+'</button>').join('')+'</div>';
+ if(t==='marca'){VOC_OPEN=false;h+='<div id="vc">'+vocHtml()+'</div>'}
  if(t==='inicio'||t==='pot'||t==='fin')h+='<div class="g2">'+campoNum('e_on','Potencial ON (mV)',{k:'on',pm:1})+campoNum('e_off','Potencial OFF (mV)',{k:'off',pm:1})+'</div>';
   if(t==='anom'){h+='<label>Forma (mV)</label><div class="g4">'+['n','s','e','o'].map(k=>'<div><label style="margin-top:0;text-align:center">'+k.toUpperCase()+'</label><input inputmode="decimal" data-k="'+k+'" style="text-align:center;padding:12px 4px" value="'+esc(D[k])+'"></div>').join('')+'</div>';
   h+=campoNum('e_olre','OL/RE (mV)',{k:'olre'})+'<label>Valoración A/C</label><div class="g2">'+acPick('acon','ON')+acPick('acoff','OFF')+'</div>'}
@@ -433,7 +467,7 @@ function pintarEd(){const T=TIPOS[D.tipo],t=D.tipo;let h='';
  h+='<label>Coordenadas GPS</label><div class="g2"><input id="e_lat" class="t" inputmode="decimal" data-k="lat" placeholder="Latitud" value="'+esc(D.lat)+'"><input id="e_lon" class="t" inputmode="decimal" data-k="lon" placeholder="Longitud" value="'+esc(D.lon)+'"></div><div style="height:8px"></div><button class="btn sm" data-f="gps">'+ic('gps')+'Actualizar GPS</button>';
  h+='<label>Nota</label><textarea id="e_nota" data-k="nota" rows="2" placeholder="Observaciones (opcional)">'+esc(D.nota)+'</textarea>';
  if(E.meta.usa_res)h+='<details style="margin-top:10px"><summary style="color:var(--mu);font-size:13px;cursor:pointer">Resistividad propia de este punto (opcional)</summary><div class="g3">'+['r1','r2','r3'].map((k,i)=>'<div><label>R ('+(i+1)+'M)</label><input class="t" inputmode="decimal" data-k="'+k+'" placeholder="'+esc(E.meta[k])+'" value="'+esc(D[k])+'"></div>').join('')+'</div></details>';
- $('sb').innerHTML=h;
+ $('sb').innerHTML=h;vocObs();
  $('sf').innerHTML='<div class="g2" style="grid-template-columns:'+(EDIT?'auto 1fr 1.4fr':'1fr 1.4fr')+'">'+(EDIT?'<button class="btn bad sm" data-s="del">'+ic('trash')+'</button>':'')+'<button class="btn" data-s="cancel">Cancelar</button><button class="btn ok" data-s="ok">'+ic('check')+'Guardar</button></div>'+((!EDIT&&(t==='pot'||t==='anom'||t==='marca'))?'<div style="height:8px"></div><button class="btn sm" style="width:100%" data-s="okn">'+ic('plus')+'Guardar y agregar otro</button>':'');
  fotos();vivo();noAuto();$('sb').scrollTop=0}
 function acPick(k,l){const v=String(D[k]||'').toUpperCase(),L=(v[0]==='A'||v[0]==='C')?v[0]:'',N=(L?v.slice(1):v).replace(/[^0-9]/g,'');return '<div class="ac" data-ac="'+k+'"><div class="seg"><button data-l="A" class="'+(L==='A'?'on':'')+'">A</button><button data-l="C" class="'+(L==='C'?'on':'')+'">C</button></div><input inputmode="numeric" maxlength="2" autocomplete="off" placeholder="'+l+'" data-av="'+k+'" value="'+N+'"></div>'}
@@ -448,7 +482,10 @@ $('sb').addEventListener('focusout',e=>{const t=e.target;if((t.id==='e_on'||t.id
 $('sb').addEventListener('click',e=>{const b=e.target.closest('button,img');if(!b)return;
  if(b.dataset.l){const w=b.closest('[data-ac]'),k=w.dataset.ac,N=w.querySelector('input').value;acSet(k,b.dataset.l,N);w.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));guardarBorrador();vib()}
  else if(b.dataset.pm){const i=$(b.dataset.pm),v=i.value.trim();i.value=v[0]==='-'?v.slice(1):(v?'-'+v:'-');D[i.dataset.k]=i.value;vivo();vib()}
- else if(b.dataset.mc){D.desc=b.dataset.mc;$('e_desc').value=D.desc;guardarBorrador()}
+ else if(b.dataset.vx){VOC_OPEN=!VOC_OPEN;vocPaint();vib()}
+ else if(b.dataset.vd){const w=b.dataset.vd;if(confirm('¿Quitar "'+w+'" del vocabulario?')){VOC=vocLoad().filter(x=>x[0]!==w);vocSave();vocPaint()}}
+ else if(b.dataset.va)vocAgregar()
+ else if(b.dataset.mc){vocPoner(b.dataset.mc);if(VOC_OPEN){VOC_OPEN=false;vocPaint()}}
  else if(b.dataset.f==='cam')$('fCam').click();else if(b.dataset.f==='gal')$('fGal').click();else if(b.dataset.f==='gps'){D.gpsManual=false;if(!aplicarFix())toast(GPSERR===1?'Permiso de ubicación denegado: actívelo en el navegador':'Aún sin señal GPS')}
  else if(b.dataset.fd){const id=b.dataset.fd;D.fotos=D.fotos.filter(x=>x!==id);if(ADDED.includes(id)){ADDED=ADDED.filter(x=>x!==id);borrarFoto(id)}else REMOVED.push(id);fotos();guardarBorrador()}
  else if(b.dataset.lb){$('lbi').src=PH[b.dataset.lb].data;$('lb').classList.add('on')}});
@@ -465,7 +502,7 @@ $('sf').addEventListener('click',async e=>{const b=e.target.closest('[data-s]');
   if(!EDIT&&!D.gpsManual&&FIX){D.lat=FIX.lat;D.lon=FIX.lon;D.acc=FIX.acc}
   const sinGps=$n(D.lat)==null;delete D.gpsManual;
   D.pk=norm(D.pk);['on','off','n','s','e','o','olre','r1','r2','r3'].forEach(k=>{D[k]=norm(D[k])});D.lat=$n(D.lat)==null?'':$n(D.lat);D.lon=$n(D.lon)==null?'':$n(D.lon);
-  const i=E.pts.findIndex(p=>p.id===D.id);if(i<0)E.pts.push(D);else E.pts[i]=D;E.pts=ordenar(E.pts);persist();vib(20);
+  const i=E.pts.findIndex(p=>p.id===D.id);if(D.tipo==='marca'&&(i<0||E.pts[i].desc!==D.desc))vocLearn(D.desc);if(i<0)E.pts.push(D);else E.pts[i]=D;E.pts=ordenar(E.pts);persist();vib(20);
   const t=D.tipo;await cerrarEd(true);toast(sinGps?'Guardado SIN coordenadas (GPS sin señal)':dup?'Guardado (ya había un punto igual en ese PK)':'Punto guardado',sinGps?3200:2200);if(a==='okn')abrir(t===('marca')?'marca':t,null)}});
 
 /* ---------- fotos: cámara, compresión y sello ---------- */
