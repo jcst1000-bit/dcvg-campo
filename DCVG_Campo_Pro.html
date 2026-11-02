@@ -577,7 +577,7 @@ function gmInit(){const w=$('gmw');if(GM.cv&&w.contains(GM.cv))return;
   gmUi();gmDraw()};
  try{const l=localStorage.getItem('dcvg_maplay');if(l&&TL[l])GM.layer=l}catch(e){}
  new ResizeObserver(gmSize).observe(w);gmSize();gmUi()}
-function gmTap(x,y){if(Math.hypot(x-(GM.w-46),y-64)<34){GM.rot=0;gmDraw();return}let b=null,bd=26;for(const h of GM.hit||[]){const d=Math.hypot(h[0]-x,h[1]-y-(h[2].tipo==='inicio'||h[2].tipo==='fin'?-14:0));if(d<bd){bd=d;b=h[2]}}
+function gmTap(x,y){if(Math.hypot(x-(GM.w-46),y-64)<34){GM.rot=0;gmDraw();return}let b=null,bd=30;for(const h of GM.hit||[]){const pin=h[2].tipo==='inicio'||h[2].tipo==='fin',d=Math.hypot(h[0]-x,(h[1]-(pin?16:0))-y);if(d<bd){bd=d;b=h[2]}}
  const i=$('gmi');if(!b){i.classList.remove('on');return}const T=TIPOS[b.tipo]||{n:b.tipo,c:'#fff'};
  i.innerHTML='<b style="color:'+T.c+'">'+T.n+'</b> '+(b.pk!==''&&b.pk!=null?'· PK '+esc(pkTxt(b.pk)):'')+(b.desc?'<br>'+esc(b.desc):'')+((b.acon||b.acoff)?'<br>'+esc([b.acon,b.acoff].filter(Boolean).join(' - ').toUpperCase()):'')+(b.olre?'<br>OL/RE: '+esc(b.olre):'');i.classList.add('on')}
 function gmUi(){const g=$('gloc'),l=$('glay');if(g)g.classList.toggle('on',GM.follow);if(l)l.textContent=TL[GM.layer].n}
