@@ -512,7 +512,7 @@ function gmRender(){GM.raf=0;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
  // recorrido
  const L=gmLine();
  if(L.length>1){c.lineJoin='round';c.lineCap='round';c.beginPath();let first=true;for(const q of L){const p=P(q[0],q[1]);first?c.moveTo(p[0],p[1]):c.lineTo(p[0],p[1]);first=false}
-  c.strokeStyle='rgba(0,0,0,.75)';c.lineWidth=8;c.stroke();c.strokeStyle='#38d5ff';c.lineWidth=4.5;c.stroke()}
+  c.strokeStyle='rgba(0,0,0,.75)';c.lineWidth=8;c.stroke();c.strokeStyle='#ffd400';c.lineWidth=4.5;c.stroke()}
  // marcadores
  const pts=gmPts(),ord=pts.slice().sort((a,b)=>({anom:1,marca:0,pot:0,inicio:2,fin:2}[a.tipo]||0)-({anom:1,marca:0,pot:0,inicio:2,fin:2}[b.tipo]||0));
  GM.hit=[];
