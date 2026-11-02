@@ -144,8 +144,6 @@ body.plv .tabs{padding:4px 12px calc(4px + env(safe-area-inset-bottom))}
 body.plv .tabs>div{padding:3px}
 body.plv .tabs button{flex-direction:row;justify-content:center;gap:7px;padding:6px 2px}
 }
-</style></head><body>
-
 body.gpsv{overflow:hidden;background:#000}body.gpsv #app{max-width:none;padding:0}body.gpsv .top{display:none}
 body.gpsv #v-gps{position:fixed;left:0;right:0;top:0;bottom:calc(74px + env(safe-area-inset-bottom));z-index:10;animation:none}
 #gmw{position:absolute;inset:0;background:#0b0f17;overflow:hidden}#gmc{position:absolute;inset:0;width:100%;height:100%;display:block}
@@ -164,6 +162,7 @@ body.gpsv #v-gps{position:fixed;left:0;right:0;top:0;bottom:calc(74px + env(safe
 .dlg .dm{font-size:15.5px;line-height:1.5;color:var(--tx);margin:0 0 16px;white-space:pre-line}
 .dlg input{width:100%;font-size:18px;padding:12px 14px;border-radius:14px;margin:0 0 16px}
 .dlg .dbt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dlg .dbt .btn{width:100%;padding:13px 10px;font-size:15px}
+</style></head><body>
 <div id="app">
  <div class="top"><div class="brand"><div class="logo" id="lg"></div><div><b>DCVG Campo Pro</b><small id="sub">Inspección</small></div></div><div class="tc"><div class="chip" id="sv"><i class="dot"></i><span>Listo</span></div><div class="chip" id="gt"><i class="dot"></i><span>GPS…</span></div></div><button class="x" id="ex" aria-label="Salir"></button></div>
  <section class="view on" id="v-rec"></section>
