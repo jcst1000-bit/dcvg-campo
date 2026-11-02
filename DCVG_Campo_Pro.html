@@ -520,7 +520,7 @@ $('gt').onclick=()=>{if(GW!=null){try{navigator.geolocation.clearWatch(GW)}catch
    Estados: act = RECORRIDO ACTIVO · pau = PAUSA DE MEDICIÓN · pos = POSIBLE REANUDACIÓN · fin = finalizado
    - Odómetro: suma solo el trayecto del recorrido (posiciones GPS filtradas, siguiendo el camino).
    - GPS: sigue funcionando en pausa; guarda el trayecto de la pausa para recuperar una reanudación olvidada. */
-const ODO_KEY='dcvg_odo_cfg_v2',ODO_DEF={umb:15,pers:6,acc:30,regla:'continuar',pantalla:true,sonido:true,paso:0.75,autocal:true,fuente:'pasos',sens:'alta',quieto:true},
+const ODO_KEY='dcvg_odo_cfg_v2',ODO_DEF={umb:15,pers:6,acc:30,regla:'continuar',pantalla:true,sonido:true,paso:0.75,autocal:true,pri:true,fuente:'pasos',sens:'alta',quieto:true},
  ODO_QA=0.3,ODO_STEP=2,ODO_VMAX=8,ODO_GAP=30000;
 let ODOCFG=Object.assign({},ODO_DEF),ODO_KF=null,ODO_H=[],ODO_PC=0,ODO_BAD=0,ODO_WL=null,ODO_AUD=null,ODO_TM=null,ODO_BP=null,ODO_LS=0,ODO_CUR=null,ODO_QL=false,ODO_SP=0,ODO_EV=null;
 try{Object.assign(ODOCFG,JSON.parse(localStorage.getItem(ODO_KEY)||'{}'))}catch(e){}
@@ -626,7 +626,7 @@ function odoStop(){const o=E.odo;if(!o||o.est==='fin')return;if(o.est==='pos'||o
 function odoReset(){ODO_KF=null;ODO_H=[];ODO_EV=null;ODO_PC=0;ODO_CUR=null;ODO_SP=0;odoAlerta(false);odoWL(false);if(ODO_TM){clearInterval(ODO_TM);ODO_TM=null}}
 function odoResumen(){const o=E&&E.odo;if(!o)return null;return{estado:o.est,distancia_total_m:o.est==='fin'?o.total:r2(o.dist),inicio:o.t0,config:ODOCFG,eventos:o.ev}}
 /* ---- PODÓMETRO: cuenta pasos con el acelerómetro; mide distancias cortas mejor que el GPS ---- */
-let PED_LAST=0,PED_SIL=0,PED_B=null,PED_S=0,PED_UP=false,PED_T=0,PED_REG=0,PED_N=0,PED_PC=0,PED_CAL=null;
+let PED_UT=0,PED_DUR=0,PED_LAST=0,PED_SIL=0,PED_B=null,PED_S=0,PED_UP=false,PED_T=0,PED_REG=0,PED_N=0,PED_PC=0,PED_CAL=null;
 const PED_TH=1.1;
 let ODO_SEG=null,ODO_PS=null,PED_A=0.9,PED_MX=0,PED_MT=0,PED_CALON=false,PED_CALN=0,PED_MV=1,PED_PK=1,ODO_NF=0,ODO_NR=0;
 const pedOK=()=>ODOCFG.fuente!=='gps'&&Date.now()-PED_LAST<3000;
@@ -641,11 +641,13 @@ function pedMotion(e){const a=e.accelerationIncludingGravity;if(!a||a.x==null||a
  PED_S+=0.35*((m-PED_B)-PED_S);
  // umbral adaptativo: se ajusta a la fuerza de TU paso (teléfono en mano, bolsillo, etc.)
  const th=Math.min(1.4,Math.max(0.35,0.45*PED_A));
- if(!PED_UP){if(PED_S>th){PED_UP=true;PED_MX=PED_S;PED_MT=t}}
+ if(!PED_UP){if(PED_S>th){PED_UP=true;PED_MX=PED_S;PED_MT=t;PED_UT=t}}
  else{if(PED_S>PED_MX){PED_MX=PED_S;PED_MT=t}
-  if(PED_S<th*0.4){PED_UP=false;PED_A=Math.min(6,Math.max(0.9,PED_A+0.3*(PED_MX-PED_A)));pedCand(PED_MT)}}}
+  if(PED_S<th*0.4){PED_UP=false;PED_DUR=t-PED_UT;PED_A=Math.min(6,Math.max(0.9,PED_A+0.3*(PED_MX-PED_A)));pedCand(PED_MT)}}}
 // Un paso solo cuenta si forma una cadencia regular (4 seguidos entre 0,3 y 1,1 s): evita contar manoseo del teléfono
 function pedCand(t){const dt=t-PED_T;if(dt<300)return;PED_T=t;if(dt<=1100)PED_REG++;else PED_REG=1;
+ // Contar desde el primer paso: cada paso suma al instante. Un paso aislado solo vale si su fuerza es la de un paso real (ni roce ni golpe)
+ if(ODOCFG.pri){if(PED_REG>1||(PED_MX>=0.55*PED_A&&PED_MX<=Math.max(4,4*PED_A)&&PED_DUR>=190&&PED_DUR<=600))pedStep(t);else PED_REG=0;return}
  if(PED_REG===4){for(let i=0;i<4;i++)pedStep(t)}else if(PED_REG>4)pedStep(t)}
 function pedStep(t){if(PED_CALON){PED_CALN++;return}const o=E&&E.odo;if(!o)return;const L=ODOCFG.paso;PED_N++;
  if(o.est==='act'){o.dist+=L;o.cum=(o.cum||0)+L;if(ODO_PS)ODO_PS.s+=L}
@@ -689,6 +691,7 @@ function odoCard(){const o=E.odo,ini=tiene('inicio'),fin=tiene('fin');
  +'<div><label>Sensibilidad del GPS</label><select data-oc="sens"><option value="alta"'+(c.sens==='alta'?' selected':'')+'>Alta (registra el mínimo movimiento)</option><option value="normal"'+(c.sens==='normal'?' selected':'')+'>Normal (filtra más ruido)</option></select></div>'
  +'<div class="ck" style="padding:0"><input type="checkbox" data-oc="quieto" id="oc_q"'+(c.quieto?' checked':'')+'><label for="oc_q" style="margin:0">No sumar si el teléfono está quieto (acelerómetro)</label></div>'
  +'<div><label>Largo de paso (m)</label><input inputmode="decimal" data-oc="paso" value="'+c.paso+'"></div>'
+ +'<div class="ck" style="padding:0"><input type="checkbox" data-oc="pri" id="oc_pri"'+(c.pri?' checked':'')+'><label for="oc_pri" style="margin:0">Contar desde el primer paso (marca desde ~1 m)</label></div>'
  +'<div class="ck" style="padding:0"><input type="checkbox" data-oc="autocal" id="oc_c"'+(c.autocal?' checked':'')+'><label for="oc_c" style="margin:0">Calibrar el paso solo con el GPS</label></div>'
  +'<div><label>Si no responde, al marcar el punto</label><select data-oc="regla"><option value="continuar"'+(c.regla==='continuar'?' selected':'')+'>Contar desde que volvió a caminar</option><option value="medir"'+(c.regla==='medir'?' selected':'')+'>No sumar (seguía midiendo)</option></select></div>'
  +'<div class="ck" style="padding:0"><input type="checkbox" data-oc="sonido" id="oc_s"'+(c.sonido?' checked':'')+'><label for="oc_s" style="margin:0">Alerta con sonido</label></div>'
