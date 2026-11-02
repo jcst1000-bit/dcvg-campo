@@ -296,7 +296,7 @@ const nFotos=()=>E.pts.reduce((a,p)=>a+p.fotos.length,0);
    Si entre ambos hubo una curva, se mide por los puntos intermedios del camino. Si el GPS no es confiable, se usa el odómetro (PK). */
 const fm2=v=>v.toFixed(2).replace('.',',');
 function distAnt(p,q){
- const H=(v,t)=>'<div class="dst"><i>Desde el anterior:</i><span>'+v+'</span>'+(t?'<i>· '+t+'</i>':'')+'</div>';
+ const H=(v,t)=>'<div class="dst"><i>Distancia al punto anterior:</i><span>'+v+'</span>'+(t?'<i>· '+t+'</i>':'')+'</div>';
  if(!q)return H('punto de partida','');
  const k1=$n(p.pk),k0=$n(q.pk),dk=(k1!=null&&k0!=null)?Math.round((k1-k0)*100)/100:null;
  const la1=$n(p.lat),lo1=$n(p.lon),la0=$n(q.lat),lo0=$n(q.lon),a1=$n(p.acc),a0=$n(q.acc);
