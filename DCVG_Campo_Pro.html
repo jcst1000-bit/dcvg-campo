@@ -506,12 +506,19 @@ function odoFix(f){const o=E&&E.odo;if(!o||!(o.est==='act'||o.est==='pau'||o.est
   if(dt<6)q=vk<(A?0.15:0.6);else{const net=Math.hypot(p.x-a[0],p.y-a[1])/dt;q=A?(net<0.3&&ODO_EV<0.3):(net<Math.max(0.7,2.5*Math.sqrt(k.Pxx)/dt)&&ODO_EV<1.0)}}
  if(ODOCFG.quieto&&ODOCFG.fuente==='gps'&&pedAlive())q=pedStill();else if(ODOCFG.quieto&&pedStill())q=true;
  const spe=q?0:sp;
+ const parado=q&&ODOCFG.quieto&&ODOCFG.fuente==='gps'&&pedAlive();if(parado){ODO_KF.vx=0;ODO_KF.vy=0}
  let dc=0;
  if(gap){dc=Math.hypot(p.x-(o.lx==null?p.x:o.lx),p.y-(o.ly==null?p.y:o.ly));if(dc<ODO_STEP*2)dc=0;
   if(dc>=30&&o.est==='act'){odoEv('hueco',{seg_s:Math.round((f.t-prev)/1000),m_en_recta:r2(dc)});toast('Hubo un tramo sin seguimiento GPS: se sumaron ~'+Math.round(dc)+' m en línea recta. Revise el PK.',5500)}}
  else if(prev){dc=0.5*(ODO_SP+spe)*((f.t-prev)/1000)}
+ if(parado)dc=0;
+ // Al detenerse: un tramo caminado nunca puede ser más corto que la línea recta entre donde arrancó y donde paró
+ if(o.est==='act'&&ODOCFG.fuente==='gps'&&ODOCFG.quieto&&pedAlive()){
+  if(!parado){if(!ODO_SEG)ODO_SEG={x:o.lx==null?p.x:o.lx,y:o.ly==null?p.y:o.ly,s:0};ODO_SEG.s+=dc}
+  else if(ODO_SEG){const ch=Math.hypot(p.x-ODO_SEG.x,p.y-ODO_SEG.y);if(ch>ODO_SEG.s+0.5)dc+=Math.min(ch-ODO_SEG.s,0.4*ch);ODO_SEG=null}}
+ else ODO_SEG=null;
  if(pedOK()&&!(gap&&PED_SIL>prev))dc=0;
- ODO_SP=spe;o.cum=(o.cum||0)+dc;o.lt=f.t;o.lx=p.x;o.ly=p.y;ODO_CUR=p;ODO_QL=q;
+ ODO_SP=parado?0:spe;o.cum=(o.cum||0)+dc;o.lt=f.t;o.lx=p.x;o.ly=p.y;ODO_CUR=p;ODO_QL=q;
  if(o.est==='act')o.dist+=dc;
  else if(o.est==='pau'){const a=o.pau;
   if(a.sinpos){a.x=p.x;a.y=p.y;a.trk=[[r1(p.x),r1(p.y),p.t,1,r2(o.cum)]];a.sinpos=false}
@@ -562,14 +569,14 @@ function odoResumen(){const o=E&&E.odo;if(!o)return null;return{estado:o.est,dis
 /* ---- PODÓMETRO: cuenta pasos con el acelerómetro; mide distancias cortas mejor que el GPS ---- */
 let PED_LAST=0,PED_SIL=0,PED_B=null,PED_S=0,PED_UP=false,PED_T=0,PED_REG=0,PED_N=0,PED_PC=0,PED_CAL=null;
 const PED_TH=1.1;
-let PED_MV=1,ODO_NF=0,ODO_NR=0;
+let ODO_SEG=null,PED_PT=0,PED_MV=1,PED_PK=1,ODO_NF=0,ODO_NR=0;
 const pedOK=()=>ODOCFG.fuente!=='gps'&&Date.now()-PED_LAST<3000;
 const pedAlive=()=>Date.now()-PED_LAST<3000;
-const pedStill=()=>Date.now()-PED_LAST<3000&&PED_MV<0.15;
+const pedStill=()=>Date.now()-PED_LAST<3000&&PED_PK<0.45;
 function pedInitPau(o){if(o.pau){o.pau.c0=r2(o.cum||0);o.pau.ps=[]}}
 function pedMotion(e){const a=e.accelerationIncludingGravity;if(!a||a.x==null||a.y==null||a.z==null)return;const t=Date.now();
  if(PED_LAST&&t-PED_LAST>10000)PED_SIL=t;PED_LAST=t;
- const m=Math.sqrt(a.x*a.x+a.y*a.y+a.z*a.z);PED_B=PED_B==null?m:PED_B+0.02*(m-PED_B);PED_MV+=0.02*(Math.abs(m-PED_B)-PED_MV);
+ const m=Math.sqrt(a.x*a.x+a.y*a.y+a.z*a.z);PED_B=PED_B==null?m:PED_B+0.02*(m-PED_B);PED_MV+=0.02*(Math.abs(m-PED_B)-PED_MV);{const dv=Math.abs(m-PED_B),k=Math.pow(0.94,Math.min(10,(t-(PED_PT||t))/16.7));PED_PK=Math.max(dv,PED_PK*k);PED_PT=t}
  if(!odoOn()||ODOCFG.fuente==='gps')return;
  PED_S+=0.35*((m-PED_B)-PED_S);
  if(!PED_UP&&PED_S>PED_TH){PED_UP=true;pedCand(t)}else if(PED_UP&&PED_S<PED_TH*0.4)PED_UP=false}
