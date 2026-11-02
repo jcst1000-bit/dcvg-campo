@@ -302,7 +302,9 @@ function distAnt(p,q){
  if(la1!=null&&lo1!=null&&la0!=null&&lo0!=null&&a1!=null&&a0!=null&&a1<=15&&a0<=15){
   const ch=geoDist(la0,lo0,la1,lo1),m=E.mig,i0=q.mi,i1=p.mi;let L=ch;
   if(m&&i0!=null&&i1!=null&&i1>i0&&i1<=m.length){let s=0,x=la0,y=lo0;for(let i=i0;i<i1;i++){s+=geoDist(x,y,m[i][0],m[i][1]);x=m[i][0];y=m[i][1]}s+=geoDist(x,y,la1,lo1);if(s>ch*1.03+0.5)L=s}
-  d=L;src='GPS'}
+  d=L;src='GPS';
+  // el GPS solo vale si concuerda con el odómetro (PK): a pocos metros el ruido del GPS inventa distancias
+  if(dk!=null&&(Math.abs(d-dk)>Math.max(4,0.25*Math.abs(dk))||d<2*Math.hypot(a1,a0))){d=dk;src='odómetro'}}
  else if(dk!=null){d=dk;src='odómetro'}
  if(d==null)return'';
  return'<div class="dst"><i>Desde el anterior:</i><span>'+fm2(d)+' m</span><i>· '+src+'</i></div>';
@@ -738,6 +740,7 @@ function pintarEd(){const T=TIPOS[D.tipo],t=D.tipo;let h='';
  $('st').innerHTML=(EDIT?'Editar · ':'Nuevo · ')+'<span style="color:'+T.c+'">'+T.n+'</span>';
  const ult=E.pts.filter(p=>p.id!==D.id).map(p=>$n(p.pk)).filter(v=>v!=null);
  h+='<label>PK · distancia (metros)</label><input id="e_pk" inputmode="decimal" autocomplete="off" data-k="pk" value="'+esc(D.pk)+'"><div class="hint">'+(ult.length?'Último PK registrado: '+Math.max.apply(null,ult)+' m':'Primer punto')+' · <b id="pkx">'+pkTxt(D.pk)+'</b><span id="pka" style="color:var(--ok)'+(D.pkAuto?'':';display:none')+'"> · automático (odómetro)</span></div>';
+ if(!EDIT)h+='<div class="qk"><button data-pkq="0.5">+0,5 m</button><button data-pkq="1">+1 m</button><button data-pkq="2">+2 m</button><button data-pkq="5">+5 m</button></div><div class="hint">Atajo exacto: PK = último punto + esos metros (ej. un comentario a 1 m del anterior). El odómetro sigue desde ahí.</div>';
  h+='<label>Descripción</label><input id="e_desc" class="t" data-k="desc" autocomplete="off" value="'+esc(D.desc)+'">';
  if(t==='marca'){VOC_OPEN=false;h+='<div id="vc">'+vocHtml()+'</div>'}
  if(t==='inicio'||t==='pot'||t==='fin')h+='<div class="g2">'+campoNum('e_on','Potencial ON (mV)',{k:'on',pm:1})+campoNum('e_off','Potencial OFF (mV)',{k:'off',pm:1})+'</div>';
@@ -765,6 +768,9 @@ $('sb').addEventListener('focusout',e=>{const t=e.target;if((t.id==='e_on'||t.id
 $('sb').addEventListener('click',e=>{const b=e.target.closest('button,img');if(!b)return;
  if(b.dataset.l){const w=b.closest('[data-ac]'),k=w.dataset.ac,N=w.querySelector('input').value;acSet(k,b.dataset.l,N);w.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));guardarBorrador();vib()}
  else if(b.dataset.pm){const i=$(b.dataset.pm),v=i.value.trim();i.value=v[0]==='-'?v.slice(1):(v?'-'+v:'-');D[i.dataset.k]=i.value;vivo();vib()}
+ else if(b.dataset.pkq){const inc=Number(b.dataset.pkq),u=E.pts.filter(p=>p.id!==D.id).map(p=>$n(p.pk)).filter(v=>v!=null),base=u.length?Math.max.apply(null,u):0,nv=r2(base+inc),o=E.odo;
+  D.pk=String(nv);if(!EDIT&&o&&(o.est==='act'||o.est==='pau')){o.dist=nv;odoEv('pk_exacto',{desde_anterior_m:inc});odoPers(true);D.pkAuto=true}else D.pkAuto=false;
+  const i=$('e_pk');if(i)i.value=D.pk;const xa=$('pka');if(xa)xa.style.display=D.pkAuto?'':'none';vivo();guardarBorrador();vib()}
  else if(b.dataset.vx){VOC_OPEN=!VOC_OPEN;vocPaint();vib()}
  else if(b.dataset.vd){const w=b.dataset.vd;if(confirm('¿Quitar "'+w+'" del vocabulario?')){VOC=vocLoad().filter(x=>x[0]!==w);vocSave();vocPaint()}}
  else if(b.dataset.va)vocAgregar()
