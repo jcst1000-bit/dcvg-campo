@@ -279,7 +279,8 @@ function persist(ya){setSave('…');saveSync();clearTimeout(tm);if(ya)flush();el
 async function flush(){clearTimeout(tm);let ok=saveSync();try{await DB.put('kv','estado',E);ok=true}catch(e){}setSave(ok?'ok':'err')}
 addEventListener('pagehide',()=>{flush();borradorAhora()});document.addEventListener('visibilitychange',()=>{if(document.hidden){flush();borradorAhora()}});
 function toast(t,ms){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),ms||2200)}
-const vib=n=>{try{navigator.vibrate&&navigator.vibrate(n||12)}catch(e){}};
+var PED_QUIET=0,PED_PERM='';
+const vib=n=>{try{PED_QUIET=Math.max(PED_QUIET,Date.now()+(n||12)+400);navigator.vibrate&&navigator.vibrate(n||12)}catch(e){}};
 
 /* ---------- navegación ---------- */
 const TABS=[['rec','list','Recorrido'],['cab','sl','Info General'],['pla','tbl','Planilla'],['dat','db','Datos']];
@@ -596,7 +597,7 @@ function odoRelleno(f,p,q,spe){const o=E.odo,sd=PED_SD-ODO_SD0;ODO_SD0=PED_SD;
  if(!ODO_W){ODO_W={t:f.t,x:p.x,y:p.y,s:0};return}
  ODO_W.s+=sd;
  if(f.t-ODO_W.t>=6000){const w=ODO_W;ODO_W={t:f.t,x:p.x,y:p.y,s:0};const ch=Math.hypot(p.x-w.x,p.y-w.y);
-  if(ch>=3&&w.s<0.4*ch&&ch-w.s>=2.5){const add=ch-w.s;o.dist+=add;o.cum=(o.cum||0)+add;odoEv('relleno_gps',{m:r2(add)})}}}
+  if(ch>=3&&w.s<0.4*ch&&ch-w.s>=2.5&&ch/((f.t-w.t)/1000)>=0.8){const add=ch-w.s;o.dist+=add;o.cum=(o.cum||0)+add;odoEv('relleno_gps',{m:r2(add)})}}}
 // Puntos intermedios del camino (posición suavizada por el filtro) para medir curvas; se separan >= 6 m (o 1,5 × precisión)
 function odoMigaja(f,z,p){const m=E.mig||(E.mig=[]);if(m.length>=50000)return;
  const lat=f.lat+(p.y-z.y)/110540,lon=f.lon+(p.x-z.x)/(111320*Math.cos(f.lat*Math.PI/180)),
@@ -636,10 +637,11 @@ function odoAlGuardar(){const o=E.odo;
 function odoStart(d0){const f=FIX&&Date.now()-FIX.t<60000?FIX:null;
  E.mig=[];E.pts.forEach(p=>{if(p.tipo==='inicio')p.mi=0});
  E.odo={est:'act',dist:+(d0||0),cum:0,ref:f?{lat:f.lat,lon:f.lon}:null,lt:0,lx:null,ly:null,pau:null,tent:0,cand:null,ev:[],t0:new Date().toISOString()};
- ODO_KF=null;ODO_H=[];ODO_EV=null;ODO_PC=0;ODO_BAD=0;ODO_CUR=null;ODO_QL=false;ODO_SP=0;ODO_W=null;ODO_SD0=PED_SD;odoEv('inicio',{});odoWL(true);odoTimer();odoPers(true);odoPaint()}
+ pedReset();ODO_KF=null;ODO_H=[];ODO_EV=null;ODO_PC=0;ODO_BAD=0;ODO_CUR=null;ODO_QL=false;ODO_SP=0;ODO_W=null;ODO_SD0=PED_SD;odoEv('inicio',{});odoWL(true);odoTimer();odoPers(true);odoPaint()}
 function odoStop(){const o=E.odo;if(!o||o.est==='fin')return;if(o.est==='pos'||o.est==='act')odoAlGuardar();
  o.est='fin';o.total=r2(o.dist);o.pau=null;odoEv('fin',{total_m:o.total});odoAlerta(false);odoWL(false);odoPers(true);odoPaint()}
-function odoReset(){ODO_KF=null;ODO_H=[];ODO_EV=null;ODO_PC=0;ODO_CUR=null;ODO_SP=0;odoAlerta(false);odoWL(false);if(ODO_TM){clearInterval(ODO_TM);ODO_TM=null}}
+function pedReset(){PED_UP=false;PED_S=0;PED_B=null;PED_REG=0;PED_PC=0;PED_T=0;PED_MX=0;PED_A=0.9;PED_N=0;PED_SD=0;ODO_SD0=0;ODO_SEG=null;ODO_PS=null;ODO_W=null;PED_CAL=null;ODO_NF=0;ODO_NR=0}
+function odoReset(){pedReset();ODO_KF=null;ODO_H=[];ODO_EV=null;ODO_PC=0;ODO_CUR=null;ODO_SP=0;odoAlerta(false);odoWL(false);if(ODO_TM){clearInterval(ODO_TM);ODO_TM=null}}
 function odoResumen(){const o=E&&E.odo;if(!o)return null;return{estado:o.est,distancia_total_m:o.est==='fin'?o.total:r2(o.dist),inicio:o.t0,config:ODOCFG,eventos:o.ev}}
 /* ---- PODÓMETRO: cuenta pasos con el acelerómetro; mide distancias cortas mejor que el GPS ---- */
 let PED_UT=0,PED_DUR=0,PED_LAST=0,PED_SIL=0,PED_B=null,PED_S=0,PED_UP=false,PED_T=0,PED_REG=0,PED_N=0,PED_PC=0,PED_CAL=null;
@@ -653,13 +655,15 @@ function pedMotion(e){const a=e.accelerationIncludingGravity;if(!a||a.x==null||a
  if(PED_LAST&&t-PED_LAST>10000)PED_SIL=t;const dtE=PED_LAST?t-PED_LAST:16;PED_LAST=t;
  const m=Math.sqrt(a.x*a.x+a.y*a.y+a.z*a.z);PED_B=PED_B==null?m:PED_B+0.02*(m-PED_B);
  const dv=Math.abs(m-PED_B);PED_MV+=0.02*(dv-PED_MV);PED_PK=Math.max(dv,PED_PK*Math.pow(0.94,Math.min(10,dtE/16.7)));
- if(!(odoOn()&&ODOCFG.fuente!=='gps')&&!PED_CALON)return;
+ if(!(odoOn()&&ODOCFG.fuente!=='gps')&&!PED_CALON){PED_UP=false;PED_S=0;PED_REG=0;return}
  PED_S+=0.35*((m-PED_B)-PED_S);
+ if(t-PED_MT>1500)PED_A=0.9+(PED_A-0.9)*Math.pow(0.5,dtE/10000);
+ if(t<PED_QUIET){PED_UP=false;PED_REG=0;return}
  // umbral adaptativo: se ajusta a la fuerza de TU paso (teléfono en mano, bolsillo, etc.)
  const th=Math.min(1.4,Math.max(0.35,0.45*PED_A));
  if(!PED_UP){if(PED_S>th){PED_UP=true;PED_MX=PED_S;PED_MT=t;PED_UT=t}}
- else{if(PED_S>PED_MX){PED_MX=PED_S;PED_MT=t}
-  if(PED_S<th*0.4){PED_UP=false;PED_DUR=t-PED_UT;PED_A=Math.min(6,Math.max(0.9,PED_A+0.3*(PED_MX-PED_A)));pedCand(PED_MT)}}}
+ else{if(t-PED_UT>1500){PED_UP=false;PED_REG=0;return}if(PED_S>PED_MX){PED_MX=PED_S;PED_MT=t}
+  if(PED_S<th*0.4){PED_UP=false;PED_DUR=t-PED_UT;PED_A=Math.min(4,Math.max(0.9,PED_A+0.3*(Math.min(PED_MX,2*PED_A)-PED_A)));pedCand(PED_MT)}}}
 // Un paso solo cuenta si forma una cadencia regular (4 seguidos entre 0,3 y 1,1 s): evita contar manoseo del teléfono
 function pedCand(t){const dt=t-PED_T;if(dt<300)return;PED_T=t;if(dt<=1100)PED_REG++;else PED_REG=1;
  // Contar desde el primer paso: cada paso suma al instante. Un paso aislado solo vale si su fuerza es la de un paso real (ni roce ni golpe)
@@ -685,7 +689,9 @@ function pedCal(p,t,acc){if(!ODOCFG.autocal||acc>12){return}
  if(d>=40&&n>=25){const l=d/n;if(l>=0.8*ODOCFG.paso&&l<=1.25*ODOCFG.paso&&l>=0.4&&l<=1.1){ODOCFG.paso=Math.round((0.85*ODOCFG.paso+0.15*l)*1000)/1000;odoCfgSave()}PED_CAL={x:p.x,y:p.y,n:PED_N,t:t}}
  else if(t-PED_CAL.t>180000)PED_CAL={x:p.x,y:p.y,n:PED_N,t:t}}
 window.addEventListener('devicemotion',pedMotion);
-document.addEventListener('click',()=>{try{if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function')DeviceMotionEvent.requestPermission().catch(()=>{})}catch(e){}},{once:true});
+function pedPermiso(){try{if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function'&&PED_PERM!=='granted'&&PED_PERM!=='pend'&&PED_PERM!=='denied'&&!pedAlive()){PED_PERM='pend';DeviceMotionEvent.requestPermission().then(r=>{PED_PERM=r},()=>{PED_PERM='denied'})}}catch(e){PED_PERM=''}}
+document.addEventListener('click',pedPermiso);
+['pointerdown','pointerup','keydown'].forEach(n=>document.addEventListener(n,()=>{PED_QUIET=Math.max(PED_QUIET,Date.now()+450)},true));
 function odoTimer(){if(ODO_TM)return;ODO_TM=setInterval(()=>{if(!odoOn()){clearInterval(ODO_TM);ODO_TM=null;return}odoPaint();odoPers()},1000)}
 async function odoWL(on){try{if(on&&ODOCFG.pantalla&&navigator.wakeLock&&!ODO_WL){ODO_WL=await navigator.wakeLock.request('screen');ODO_WL.addEventListener('release',()=>{ODO_WL=null})}else if(!on&&ODO_WL){await ODO_WL.release();ODO_WL=null}}catch(e){}}
 function odoDesbloquear(){try{ODO_AUD=ODO_AUD||new(window.AudioContext||window.webkitAudioContext)();if(ODO_AUD.state==='suspended')ODO_AUD.resume()}catch(e){}}
@@ -720,7 +726,7 @@ function odoPaint(){const o=E&&E.odo,v=$('odo_v');if(!v||!o)return;const est=o.e
  else if(est==='pos'){val=o.dist+o.tent;t='POSIBLE REANUDACIÓN';cls='bad';x='+'+odoFm(o.tent)+' por confirmar'}
  else{val=o.total!=null?o.total:o.dist;t='RECORRIDO FINALIZADO · TOTAL'}
  const setT=(el,tx)=>{if(el&&el.textContent!==tx)el.textContent=tx};setT(v,odoFm(val));const s=$('odo_s');const cn='chip '+cls;if(s.className!==cn)s.className=cn;setT(s,t);
- if(est!=='fin'&&!x){if(pedOK())x='Contando pasos · '+String(ODOCFG.paso).replace('.',',')+' m por paso';else if(ODOCFG.fuente==='gps'&&FIX&&Date.now()-FIX.t<=15000)x='GPS ±'+FIX.acc+' m · sensibilidad '+ODOCFG.sens;else if(!FIX||Date.now()-FIX.t>15000)x='Sin sensor de pasos ni señal GPS: no acumula'}
+ if(est!=='fin'&&!x){if(pedOK())x='Contando pasos · '+String(ODOCFG.paso).replace('.',',')+' m por paso';else if(ODOCFG.fuente!=='gps'&&FIX&&Date.now()-FIX.t<=15000)x='⚠ Sin sensor de pasos'+(PED_PERM==='denied'?' (permiso de movimiento denegado)':'')+': midiendo solo con GPS, menos exacto';else if(ODOCFG.fuente==='gps'&&FIX&&Date.now()-FIX.t<=15000)x='GPS ±'+FIX.acc+' m · sensibilidad '+ODOCFG.sens;else if(!FIX||Date.now()-FIX.t>15000)x='Sin sensor de pasos ni señal GPS: no acumula'}
  setT($('odo_x'),x);
  const dg=$('odo_d');if(dg){const k=ODO_KF,vk=k?Math.hypot(k.vx,k.vy):0;dg.textContent=est==='fin'?'':'GPS: '+ODO_NF+' lecturas'+gpsHz()+(ODO_NR?' ('+ODO_NR+' descartadas)':'')+' · última hace '+(FIX?Math.round((Date.now()-FIX.t)/1000):'—')+' s · ±'+(FIX?FIX.acc:'—')+' m · vel '+vk.toFixed(1).replace('.',',')+' m/s · '+(pedAlive()?(pedStill()?'quieto':'en movimiento'):'sin acelerómetro')+(ODOCFG.fuente!=='gps'?' · pasos '+PED_N+' × '+String(ODOCFG.paso).replace('.',',')+' m':'')}
  if(ODO_AS!==est){ODO_AS=est;const a=$('odo_a');a.innerHTML=est==='act'?'<button class="btn am" data-od="pau">'+ic('flag')+'PAUSAR RECORRIDO</button>'
