@@ -491,19 +491,20 @@ function odoEv(tipo,x){const o=E.odo;o.ev.push(Object.assign({t:new Date().toISO
 function odoPers(ya){if(ya||Date.now()-ODO_LS>5000){ODO_LS=Date.now();persist(!!ya)}}
 // DISTANCIA = integral de la velocidad (Doppler del GPS si existe; si no, la del filtro). No depende del ruido de posición.
 function odoFix(f){const o=E&&E.odo;if(!o||!(o.est==='act'||o.est==='pau'||o.est==='pos'))return;
- if(!f||f.acc>ODOCFG.acc){odoPaint();return}
+ if(!f||f.acc>ODOCFG.acc){ODO_NR++;odoPaint();return}
+ ODO_NF++;
  if(!o.ref)o.ref={lat:f.lat,lon:f.lon};
  const z=odoXY(f.lat,f.lon),acc=Math.max(f.acc*(ODOCFG.sens==='alta'?0.4:1),2);
  if(ODO_KF){const dt=(f.t-ODO_KF.t)/1000,d=Math.hypot(z.x-ODO_KF.x,z.y-ODO_KF.y);if(dt>0&&dt<ODO_GAP/1000&&d>25&&d/dt>ODO_VMAX&&ODO_BAD<4){ODO_BAD++;return}}
  ODO_BAD=0;ODO_KF=odoKf(ODO_KF,z,acc,f.t);
  const k=ODO_KF,dop=f.v!=null&&isFinite(f.v),p={x:k.x,y:k.y,t:f.t},prev=o.lt,gap=!!prev&&f.t-prev>ODO_GAP;
  let sp,q;
- const A=ODOCFG.sens==='alta';if(dop){sp=f.v;q=sp<(A?0.12:0.5)}
+ const A=ODOCFG.sens==='alta';if(dop&&ODOCFG.fuente!=='gps'){sp=f.v;q=sp<(A?0.12:0.5)}
  else{// sin velocidad Doppler: ¿se desplazó de verdad en los últimos ~8 s? (evita sumar ruido estando parado)
   ODO_H.push([p.x,p.y,p.t]);while(ODO_H.length>2&&p.t-ODO_H[1][2]>=8000)ODO_H.shift();
   const a=ODO_H[0],dt=(p.t-a[2])/1000,vk=Math.hypot(k.vx,k.vy);ODO_EV=ODO_EV==null?vk:ODO_EV+0.25*(vk-ODO_EV);sp=vk;
   if(dt<6)q=vk<(A?0.15:0.6);else{const net=Math.hypot(p.x-a[0],p.y-a[1])/dt;q=A?(net<0.3&&ODO_EV<0.3):(net<Math.max(0.7,2.5*Math.sqrt(k.Pxx)/dt)&&ODO_EV<1.0)}}
- if(ODOCFG.quieto&&pedStill())q=true;
+ if(ODOCFG.quieto&&ODOCFG.fuente==='gps'&&pedAlive())q=pedStill();else if(ODOCFG.quieto&&pedStill())q=true;
  const spe=q?0:sp;
  let dc=0;
  if(gap){dc=Math.hypot(p.x-(o.lx==null?p.x:o.lx),p.y-(o.ly==null?p.y:o.ly));if(dc<ODO_STEP*2)dc=0;
@@ -561,8 +562,9 @@ function odoResumen(){const o=E&&E.odo;if(!o)return null;return{estado:o.est,dis
 /* ---- PODÓMETRO: cuenta pasos con el acelerómetro; mide distancias cortas mejor que el GPS ---- */
 let PED_LAST=0,PED_SIL=0,PED_B=null,PED_S=0,PED_UP=false,PED_T=0,PED_REG=0,PED_N=0,PED_PC=0,PED_CAL=null;
 const PED_TH=1.1;
-let PED_MV=1;
+let PED_MV=1,ODO_NF=0,ODO_NR=0;
 const pedOK=()=>ODOCFG.fuente!=='gps'&&Date.now()-PED_LAST<3000;
+const pedAlive=()=>Date.now()-PED_LAST<3000;
 const pedStill=()=>Date.now()-PED_LAST<3000&&PED_MV<0.15;
 function pedInitPau(o){if(o.pau){o.pau.c0=r2(o.cum||0);o.pau.ps=[]}}
 function pedMotion(e){const a=e.accelerationIncludingGravity;if(!a||a.x==null||a.y==null||a.z==null)return;const t=Date.now();
@@ -607,7 +609,7 @@ function odoCard(){const o=E.odo,ini=tiene('inicio'),fin=tiene('fin');
  if(!o)return fin?'':'<div class="card odo"><div class="lb">Odómetro</div><div class="odx">Mide la distancia real del recorrido (curvas y giros) con el GPS.</div><div style="height:10px"></div><button class="btn pri" data-od="ini">Iniciar odómetro</button></div>';
  const c=ODOCFG;
  return'<div class="card odo"><div class="lb">Odómetro · distancia recorrida</div><div class="odv" id="odo_v">0,00 m</div>'
- +'<div class="odr"><span class="chip" id="odo_s">—</span><span class="odx" id="odo_x"></span></div><div class="odb" id="odo_a"></div>'
+ +'<div class="odr"><span class="chip" id="odo_s">—</span><span class="odx" id="odo_x"></span></div><div class="odb" id="odo_a"></div><div class="odx" id="odo_d" style="font-size:11px;opacity:.7;margin-top:6px"></div>'
  +'<details><summary>Ajustes del odómetro</summary><div class="ods">'
  +'<div><label>Alerta si se aleja (m)</label><input inputmode="decimal" data-oc="umb" value="'+c.umb+'"></div>'
  +'<div><label>Persistencia (seg)</label><input inputmode="decimal" data-oc="pers" value="'+c.pers+'"></div>'
@@ -630,6 +632,7 @@ function odoPaint(){const o=E&&E.odo,v=$('odo_v');if(!v||!o)return;const est=o.e
  v.textContent=odoFm(val);const s=$('odo_s');s.className='chip '+cls;s.textContent=t;
  if(est!=='fin'&&!x){if(pedOK())x='Contando pasos · '+String(ODOCFG.paso).replace('.',',')+' m por paso';else if(ODOCFG.fuente==='gps'&&FIX&&Date.now()-FIX.t<=15000)x='GPS ±'+FIX.acc+' m · sensibilidad '+ODOCFG.sens;else if(!FIX||Date.now()-FIX.t>15000)x='Sin sensor de pasos ni señal GPS: no acumula'}
  $('odo_x').textContent=x;
+ const dg=$('odo_d');if(dg){const k=ODO_KF,vk=k?Math.hypot(k.vx,k.vy):0;dg.textContent=est==='fin'?'':'GPS: '+ODO_NF+' lecturas'+(ODO_NR?' ('+ODO_NR+' descartadas)':'')+' · última hace '+(FIX?Math.round((Date.now()-FIX.t)/1000):'—')+' s · ±'+(FIX?FIX.acc:'—')+' m · vel '+vk.toFixed(1).replace('.',',')+' m/s · '+(pedAlive()?(pedStill()?'quieto':'en movimiento'):'sin acelerómetro')}
  if(ODO_AS!==est){ODO_AS=est;const a=$('odo_a');a.innerHTML=est==='act'?'<button class="btn am" data-od="pau">'+ic('flag')+'PAUSAR RECORRIDO</button>'
   :est==='pau'?'<button class="btn ok" data-od="cont">'+ic('play')+'CONTINUAR RECORRIDO</button>'
   :est==='pos'?'<button class="btn am" data-od="cont">CONTINÚO EL RECORRIDO</button><button class="btn" data-od="pau">LLEGUÉ AL SIGUIENTE PUNTO · PAUSAR AQUÍ</button><button class="btn" data-od="med">SIGO MIDIENDO</button>':''}
