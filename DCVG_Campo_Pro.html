@@ -313,7 +313,7 @@ function distAnt(p,q){
  else if(dk!=null){d=dk;src='odómetro'}
  else if(g!=null){d=g;src='GPS aprox.'}
  if(d==null)return H('sin datos','falta PK o GPS');
- return H(fm2(d)+' m',src);
+ return H(fm2(d)+' m','');
 }
 function rRec(){const ini=tiene('inicio'),fin=tiene('fin'),rows=calcular(E.pts,E.meta);
  const ks=E.pts.map(p=>$n(p.pk)).filter(v=>v!=null),last=ks.length?Math.max.apply(null,ks):null;
