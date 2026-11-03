@@ -277,7 +277,7 @@ function up(t){const a=t.selectionStart,b=t.selectionEnd,v=t.value.toUpperCase()
 function upAll(){['empresa','proyecto','diametro','lugar_ini','lugar_fin','sector_tramo','ubicacion','sector','titulo_dcvg','titulo_log'].forEach(k=>{if(typeof E.meta[k]==='string')E.meta[k]=E.meta[k].toUpperCase()});E.pts.forEach(p=>{['desc','nota'].forEach(k=>{if(typeof p[k]==='string')p[k]=p[k].toUpperCase()})})}
 function noAuto(){document.querySelectorAll('input:not([type=checkbox]),textarea').forEach(e=>{e.setAttribute('autocomplete','off');e.setAttribute('autocorrect','off');e.setAttribute('spellcheck','false')})}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const VER='v16-2026-11-02';
+const VER='v18-2026-11-03';
 let E=null,PH={},D=null,EDIT=null,ADDED=[],REMOVED=[],stopGPS=null,VIEW='rec';
 
 /* ---------- almacenamiento local (IndexedDB) ---------- */
@@ -313,27 +313,71 @@ function trkLL(x,y){const r=TK.ref;return[r.lat+y/110540,r.lon+x/(111320*Math.co
 function trkClean(){const t=E&&E.trk;if(!t||E.trkC||t.length<3)return;TK.ref=TK.ref||{lat:t[0][0],lon:t[0][1]};const o=[t[0]];let l=trkXY(t[0][0],t[0][1]);
  for(let i=1;i<t.length;i++){const q=trkXY(t[i][0],t[i][1]);if(Math.hypot(q.x-l.x,q.y-l.y)>=6){o.push(t[i]);l=q}}E.trk=o;E.trkC=1}
 function gmSync(){if(GM.E!==E){GM.E=E;GM.fitted=false;TK.kf=null;TK.ref=null}}
+let TKR=null;
+const TKD={base:null,lp:0,p1:0,p2:0,pk:[],last:0,on:false,t:0};
+function trkDetFeed(t,m){if(TKD.base==null){TKD.base=m;return}
+ TKD.base+=0.02*(m-TKD.base);const c=(TKD.lp+=0.35*((m-TKD.base)-TKD.lp));
+ if(TKD.p1>TKD.p2&&TKD.p1>=c&&TKD.p1>1.0&&t-TKD.last>300){TKD.last=t;TKD.pk.push(t);if(TKD.pk.length>8)TKD.pk.shift()}
+ TKD.p2=TKD.p1;TKD.p1=c}
+function trkDetMov(n){const pk=TKD.pk,a=pk.filter(x=>n-x<=4000);let w=false;
+ if(a.length>=4){let mn=1e9,mx=0;for(let i=1;i<a.length;i++){const d=a[i]-a[i-1];if(d<mn)mn=d;if(d>mx)mx=d}w=mn>=300&&mx<=1300&&mx<=2.3*mn}
+ if(w)TKD.on=true;else if(!(pk.length&&n-pk[pk.length-1]<=2200))TKD.on=false;return TKD.on}
+try{window.addEventListener('devicemotion',e=>{const a=e.accelerationIncludingGravity||e.acceleration;if(!a||a.x==null)return;TKD.t=Date.now();trkDetFeed(TKD.t,Math.hypot(a.x,a.y,a.z))},{passive:true})}catch(e){}
+function trkRawSave(){clearTimeout(TK.rt);TK.rt=setTimeout(()=>{try{if(TKR){const pr=DB.put('kv','trkraw',TKR);if(pr&&pr.catch)pr.catch(()=>{})}}catch(e){}},8000)}
+function trkRaw(f){if(!E)return;if(!E.rawId)E.rawId=Math.random().toString(36).slice(2,10);
+ if(!TKR||TKR.id!==E.rawId)TKR={id:E.rawId,a:[]};if(TKR.a.length>=30000){TKR.full=1;return}
+ TKR.a.push([f.t,+f.lat.toFixed(6),+f.lon.toFixed(6),f.acc,f.v==null?null:+f.v.toFixed(2),f.h==null?null:Math.round(f.h),TK.seg?1:0]);TK.seg=0;trkRawSave()}
+function trkPred(s,dt){const q=0.5*0.5;s.x+=s.vx*dt;s.y+=s.vy*dt;const pp=s.pp+2*dt*s.pv+dt*dt*s.vv+q*dt*dt*dt*dt/4,pv=s.pv+dt*s.vv+q*dt*dt*dt/2,vv=s.vv+q*dt*dt;s.pp=pp;s.pv=pv;s.vv=vv}
+function trkUpP(s,zx,zy,R2){const S=s.pp+R2,Kp=s.pp/S,Kv=s.pv/S,ix=zx-s.x,iy=zy-s.y;s.x+=Kp*ix;s.y+=Kp*iy;s.vx+=Kv*ix;s.vy+=Kv*iy;const pp=(1-Kp)*s.pp,pv=s.pv-Kp*s.pv,vv=s.vv-Kv*s.pv;s.pp=pp;s.pv=pv;s.vv=vv}
+function trkUpV(s,zx,zy,R2){const S=s.vv+R2,Kp=s.pv/S,Kv=s.vv/S,ix=zx-s.vx,iy=zy-s.vy;s.x+=Kp*ix;s.y+=Kp*iy;s.vx+=Kv*ix;s.vy+=Kv*iy;const pp=s.pp-Kp*s.pv,pv=s.pv-Kp*s.vv,vv=(1-Kv)*s.vv;s.pp=pp;s.pv=pv;s.vv=vv}
 function trkAdd(f){if(!E||!f||f.acc>25)return;gmSync();const t=E.trk=E.trk||[];
+ if(!t.length)E.trkC=1;
  if(!TK.ref)TK.ref=t.length?{lat:t[0][0],lon:t[0][1]}:{lat:f.lat,lon:f.lon};
- const z=trkXY(f.lat,f.lon),R=Math.max(f.acc,4),k=TK.kf;
- if(!k){if(f.acc>20&&!t.length)return;TK.kf={x:z.x,y:z.y,p:R*R,t:f.t};TK.bad=0;if(!t.length){t.push([+f.lat.toFixed(6),+f.lon.toFixed(6)]);trkSave()}return}
- if(!trkMov()){if(TK.mv){TK.mv=false;const l0=t[t.length-1],L0=l0?trkXY(l0[0],l0[1]):null;if(L0&&Math.hypot(k.x-L0.x,k.y-L0.y)>3){const q0=trkLL(k.x,k.y);t.push([+q0[0].toFixed(6),+q0[1].toFixed(6)]);trkSave()}}return}
- TK.mv=true;
- const dt=(f.t-k.t)/1000;if(dt<=0)return;
- // descarta saltos imposibles (rebotes del GPS)
- const d0=Math.hypot(z.x-k.x,z.y-k.y);if(dt<30&&d0>20&&d0/dt>6&&TK.bad<3){TK.bad++;return}TK.bad=0;
- // filtro de Kalman: estabiliza la posición; cuanto más precisa la señal, más pesa
- k.p+=2*dt;const g=k.p/(k.p+R*R);k.x+=g*(z.x-k.x);k.y+=g*(z.y-k.y);k.p*=(1-g);k.t=f.t;
+ const z=trkXY(f.lat,f.lon),R=Math.max(f.acc,4)*1.3,R2=R*R,k=TK.kf;
+ if(!k){if(f.acc>20&&!t.length)return;TK.kf={x:z.x,y:z.y,vx:0,vy:0,pp:R2,pv:0,vv:4,t:f.t};TK.bad=0;if(!t.length){t.push([+f.lat.toFixed(6),+f.lon.toFixed(6)]);trkSave()}return}
+ if(!trkMov()){if(TK.mv){TK.mv=false;const l0=t[t.length-1],L0=l0?trkXY(l0[0],l0[1]):null;if(L0&&Math.hypot(k.x-L0.x,k.y-L0.y)>2){const q0=trkLL(k.x,k.y);t.push([+q0[0].toFixed(6),+q0[1].toFixed(6)]);trkSave()}setTimeout(()=>trkRefine(true),3000)}return}
+ if(!TK.mv){TK.mv=true;k.vx=0;k.vy=0;k.pp=Math.max(k.pp,R2*0.5);k.pv=0;k.vv=4;k.t=f.t;TK.bad=0;TK.seg=1}
+ trkRaw(f);
+ const dt=Math.min(10,(f.t-k.t)/1000);if(dt<=0)return;
+ trkPred(k,dt);k.t=f.t;
+ const d=Math.hypot(z.x-k.x,z.y-k.y);
+ if(d>3.5*Math.sqrt(k.pp+R2)&&d>15&&TK.bad<4)TK.bad++;else{TK.bad=0;trkUpP(k,z.x,z.y,R2)}
+ if(f.v!=null&&f.v>0.7&&f.h!=null){const a=f.h*Math.PI/180;trkUpV(k,f.v*Math.sin(a),f.v*Math.cos(a),0.1*0.1)}
  const last=t[t.length-1],L=last?trkXY(last[0],last[1]):null,dm=L?Math.hypot(k.x-L.x,k.y-L.y):99;
- // solo se agrega un punto si realmente te moviste más que el error del GPS
- let th=Math.max(6,Math.min(14,f.acc*0.8));if(f.v!=null&&f.v<0.5)th=Math.max(th,12);
- if(dm<th)return;
+ const th=Math.max(3,Math.min(8,f.acc*0.5));let emit=dm>=th;
+ if(!emit&&dm>=3&&t.length>=2){const pr=trkXY(t[t.length-2][0],t[t.length-2][1]),a1=Math.atan2(L.y-pr.y,L.x-pr.x),a2=Math.atan2(k.y-L.y,k.x-L.x);let da=Math.abs(a2-a1);if(da>Math.PI)da=2*Math.PI-da;if(da>0.5)emit=true}
+ if(!emit)return;
  const ll=trkLL(k.x,k.y);t.push([+ll[0].toFixed(6),+ll[1].toFixed(6)]);if(t.length>12000)t.splice(1,1);trkSave()}
+// Suavizado con toda la caminata (Kalman + RTS): corrige el trazo usando también las lecturas posteriores. No necesita internet.
+function trkRefine(soloQuieto){try{const R0=TKR;if(!E||!R0||R0.id!==E.rawId||R0.full||R0.a.length<4)return;if(soloQuieto&&trkMov())return;gmSync();
+ if(!TK.ref)TK.ref={lat:R0.a[0][1],lon:R0.a[0][2]};
+ const SA=0.5,INF=2,RV=0.1,sg=[];let cur=null;
+ for(const r of R0.a){if(r[6]||!cur){cur=[];sg.push(cur)}cur.push(r)}
+ const out=[];
+ for(const g of sg){const n=g.length;if(n<3)continue;
+  const P0=trkXY(g[0][1],g[0][2]);const X=[],Xp=[],F=[1];
+  const cp=s=>({x:s.x,y:s.y,vx:s.vx,vy:s.vy,pp:s.pp,pv:s.pv,vv:s.vv});
+  let s={x:P0.x,y:P0.y,vx:0,vy:0,pp:Math.pow(Math.max(g[0][3],4)*INF,2),pv:0,vv:4};X.push(cp(s));Xp.push(cp(s));
+  for(let i=1;i<n;i++){const r=g[i],dt=Math.max(0.2,Math.min(10,(r[0]-g[i-1][0])/1000));
+   const q=SA*SA,pp=s.pp+2*dt*s.pv+dt*dt*s.vv+q*Math.pow(dt,4)/4,pv=s.pv+dt*s.vv+q*Math.pow(dt,3)/2,vv=s.vv+q*dt*dt;
+   const pr={x:s.x+s.vx*dt,y:s.y+s.vy*dt,vx:s.vx,vy:s.vy,pp:pp,pv:pv,vv:vv};Xp.push(cp(pr));F.push(dt);
+   const z=trkXY(r[1],r[2]),R=Math.max(r[3],4)*INF,R2=R*R,S=pr.pp+R2,d=Math.hypot(z.x-pr.x,z.y-pr.y);
+   if(!(d>3.5*Math.sqrt(S)&&d>15))trkUpP(pr,z.x,z.y,R2);
+   if(r[4]!=null&&r[4]>0.7&&r[5]!=null){const a=r[5]*Math.PI/180;trkUpV(pr,r[4]*Math.sin(a),r[4]*Math.cos(a),RV*RV)}
+   s=pr;X.push(cp(s))}
+  const Xs=X.map(cp);
+  for(let i=n-2;i>=0;i--){const dt=F[i+1],P=X[i],Pn=Xp[i+1];
+   const m00=P.pp+dt*P.pv,m01=P.pv,m10=P.pv+dt*P.vv,m11=P.vv,det=Pn.pp*Pn.vv-Pn.pv*Pn.pv;if(Math.abs(det)<1e-9)continue;
+   const i00=Pn.vv/det,i01=-Pn.pv/det,i10=-Pn.pv/det,i11=Pn.pp/det,c00=m00*i00+m01*i10,c01=m00*i01+m01*i11,c10=m10*i00+m11*i10,c11=m10*i01+m11*i11;
+   const dx=Xs[i+1].x-Xp[i+1].x,dvx=Xs[i+1].vx-Xp[i+1].vx,dy=Xs[i+1].y-Xp[i+1].y,dvy=Xs[i+1].vy-Xp[i+1].vy;
+   Xs[i].x=X[i].x+c00*dx+c01*dvx;Xs[i].vx=X[i].vx+c10*dx+c11*dvx;Xs[i].y=X[i].y+c00*dy+c01*dvy;Xs[i].vy=X[i].vy+c10*dy+c11*dvy}
+  let l=null;Xs.forEach((q,i)=>{if(!l||Math.hypot(q.x-l[0],q.y-l[1])>=3||i===n-1){out.push([q.x,q.y]);l=[q.x,q.y]}})}
+ if(out.length<2)return;
+ E.trk=out.map(p=>{const q=trkLL(p[0],p[1]);return[+q[0].toFixed(6),+q[1].toFixed(6)]});E.trkC=1;trkSave();gmDraw()}catch(e){console.error(e)}}
 function trkMov(){const n=Date.now();
  if(ODOCFG.fuente!=='gps'&&odoOn()&&pedAlive())return PED_T>0&&n-PED_T<2500;
- if(pedAlive()&&PED_MV>0.3)return true;
- if(FIX&&FIX.v!=null&&FIX.v>0.6&&n-FIX.t<4000)return true;
- return false}
+ if(n-TKD.t<3000)return trkDetMov(n);
+ return !!(FIX&&FIX.v!=null&&FIX.v>=0.8&&FIX.acc<=15&&n-FIX.t<4000)}
 function trkSave(){clearTimeout(GM.ts);GM.ts=setTimeout(()=>{try{persist()}catch(e){}},5000)}
 function gmPts(){return(E.pts||[]).filter(p=>$n(p.lat)!=null&&$n(p.lon)!=null)}
 function gmLive(){const k=TK.kf;if(k&&TK.ref&&(!trkMov()||Date.now()-k.t<45000))return trkLL(k.x,k.y);return FIX?[FIX.lat,FIX.lon]:null}
@@ -438,7 +482,7 @@ function gmTap(x,y){if(Math.hypot(x-(GM.w-46),y-64)<34){GM.rot=0;gmDraw();return
  i.innerHTML='<b style="color:'+T.c+'">'+T.n+'</b> '+(b.pk!==''&&b.pk!=null?'· PK '+esc(pkTxt(b.pk)):'')+(b.desc?'<br>'+esc(b.desc):'')+((b.acon||b.acoff)?'<br>'+esc([b.acon,b.acoff].filter(Boolean).join(' - ').toUpperCase()):'')+(b.olre?'<br>OL/RE: '+esc(b.olre):'');i.classList.add('on')}
 function gmUi(){const g=$('gloc'),l=$('glay');if(g)g.classList.toggle('on',GM.follow);if(l)l.textContent=TL[GM.layer].n}
 function gmFix(){if(!GM.on)return;if(GM.follow&&FIX){GM.lat=FIX.lat;GM.lon=FIX.lon}gmDraw()}
-function rGps(){gmSync();trkClean();GM.on=true;document.body.classList.add('gpsv');gmInit();gmSize();if(!GM.fitted){GM.fitted=true;if(FIX&&!gmLine().length&&!gmPts().length){GM.lat=FIX.lat;GM.lon=FIX.lon;GM.z=18;GM.follow=true}else gmFit();gmUi()}gmDraw()}
+function rGps(){gmSync();trkClean();trkRefine(true);GM.on=true;document.body.classList.add('gpsv');gmInit();gmSize();if(!GM.fitted){GM.fitted=true;if(FIX&&!gmLine().length&&!gmPts().length){GM.lat=FIX.lat;GM.lon=FIX.lon;GM.z=18;GM.follow=true}else gmFit();gmUi()}gmDraw()}
 
 
 /* ===== Integración GPS (no modifica nada del código original: solo se engancha) ===== */
@@ -474,7 +518,7 @@ render=function(){const g=VIEW==='gps';document.body.classList.toggle('gpsv',g);
 const _gpsChip0=gpsChip;
 gpsChip=function(){_gpsChip0.apply(this,arguments);try{if(FIX&&FIX!==GM.lastFix){GM.lastFix=FIX;trkAdd(FIX)}gmFix()}catch(e){console.error(e)}};
 const _cancel0=cancelarInsp;
-cancelarInsp=async function(){const n=E.pts.length;await _cancel0.apply(this,arguments);if(n&&!E.pts.length){E.trk=[];GM.fitted=false;TK.kf=null;TK.ref=null}};
+cancelarInsp=async function(){const n=E.pts.length;await _cancel0.apply(this,arguments);if(n&&!E.pts.length){E.trk=[];E.rawId=null;TKR=null;GM.fitted=false;TK.kf=null;TK.ref=null}};
 
 function ir(v){VIEW=v;document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));render();scrollTo(0,0)}
 function renderTabs(){$('tabs').innerHTML=TABS.map(t=>'<button data-v="'+t[0]+'" class="'+(VIEW===t[0]?'on':'')+'">'+ic(t[1])+t[2]+'</button>').join('')}
@@ -603,7 +647,7 @@ function shareFotos(){const F=PRE_F;if(!F){toast('Preparando las fotos… toque 
  navigator.share({files:lot}).then(()=>{FI+=15;if(FI<F.length)toast('Enviadas. Toque otra vez para las '+(F.length-FI)+' fotos restantes',4500);else FI=0}).catch(e=>{if(e&&e.name!=='AbortError')toast('El equipo bloqueó Compartir ('+((e&&e.name)||'error')+')',5000)})}
 async function accionDatos(a){
  if(a==='inst')return instalar();if(a==='hideinst'){rDat();return}
- if(a==='upd'){if(!await dlgConfirm('Se buscará la versión más nueva y la app se recargará. Sus datos no se borran. ¿Continuar?'))return;await flush();try{for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();for(const k of await caches.keys())await caches.delete(k)}catch(e){}location.reload();return}
+ if(a==='upd'){if(!navigator.onLine){toast('Sin internet: no se puede buscar actualización. No se cambió nada.',5500);return}if(!await dlgConfirm('Se buscará la versión más nueva y la app se recargará. Sus datos no se borran. ¿Continuar?'))return;await flush();try{const rr=await fetch(location.pathname,{cache:'no-store'});if(!rr.ok)throw 0}catch(e){toast('No hay conexión con el servidor. No se cambió nada.',5500);return}try{for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();for(const k of await caches.keys())await caches.delete(k)}catch(e){}location.reload();return}
  if(a==='fotos'){if(navigator.share)return shareFotos();toast('Este equipo no permite compartir');return}
  if(a==='sh-txt'||a==='share'){if(!E.pts.length){toast('No hay puntos para exportar');return}if(navigator.share)return shareJson(a);if(a!=='share')a='down'}
  if(a==='share'||a==='down'){if(!E.pts.length){toast('No hay puntos para exportar');return}const g=await generar();$('xi').textContent=g.nom+' · '+(g.txt.length/1048576).toFixed(2)+' MB';
@@ -715,7 +759,7 @@ let GPS_RS=0,GPS_TS=[],GPS_T0=0;
 function gpsHz(){const n=GPS_TS.length;if(n<3||Date.now()-GPS_TS[n-1]>6000)return'';const dt=(GPS_TS[n-1]-GPS_TS[0])/1000;return dt>0?' · '+((n-1)/dt).toFixed(1).replace('.',',')+' lect/s'+(GPS_RS?' · reinicios '+GPS_RS:''):''}
 function gpsReinicia(){if(GPSERR===1||!navigator.geolocation)return;try{if(GW!=null)navigator.geolocation.clearWatch(GW)}catch(e){}GW=null;GPS_RS++;setTimeout(gpsGlobal,300)}
 setInterval(()=>{if(document.hidden||GPSERR===1||GW==null)return;const t=Date.now();if(FIX?t-FIX.t>8000:(GPS_T0&&t-GPS_T0>20000))gpsReinicia()},4000);
-function gpsGlobal(){if(GW!=null||!navigator.geolocation)return;GPS_T0=Date.now();try{GW=navigator.geolocation.watchPosition(p=>{const q=p.coords;FIX={lat:q.latitude,lon:q.longitude,acc:Math.round(q.accuracy),t:Date.now(),v:(q.speed!=null&&isFinite(q.speed))?q.speed:null};GPS_TS.push(FIX.t);if(GPS_TS.length>12)GPS_TS.shift();GPSERR=null;try{fixBuf(FIX)}catch(e){console.error(e)}try{odoFix(FIX)}catch(e){console.error(e)}try{odoRefPK()}catch(e){console.error(e)}try{if(D&&!EDIT&&!D.gpsManual)aplicarFix(true)}catch(e){console.error(e)}gpsChip()},er=>{if(er.code===1){GPSERR=1;FIX=null}else gpsReinicia();gpsChip()},{enableHighAccuracy:true,maximumAge:0,timeout:20000})}catch(e){}}
+function gpsGlobal(){if(GW!=null||!navigator.geolocation)return;GPS_T0=Date.now();try{GW=navigator.geolocation.watchPosition(p=>{const q=p.coords;FIX={lat:q.latitude,lon:q.longitude,acc:Math.round(q.accuracy),t:Date.now(),v:(q.speed!=null&&isFinite(q.speed))?q.speed:null,h:(q.heading!=null&&isFinite(q.heading))?q.heading:null};GPS_TS.push(FIX.t);if(GPS_TS.length>12)GPS_TS.shift();GPSERR=null;try{fixBuf(FIX)}catch(e){console.error(e)}try{odoFix(FIX)}catch(e){console.error(e)}try{odoRefPK()}catch(e){console.error(e)}try{if(D&&!EDIT&&!D.gpsManual)aplicarFix(true)}catch(e){console.error(e)}gpsChip()},er=>{if(er.code===1){GPSERR=1;FIX=null}else gpsReinicia();gpsChip()},{enableHighAccuracy:true,maximumAge:0,timeout:20000})}catch(e){}}
 function gpsArranque(){if(!navigator.geolocation)return;gpsGlobal();addEventListener('pageshow',()=>{if(GW==null&&GPSERR!==1)gpsGlobal()});document.addEventListener('visibilitychange',()=>{if(document.hidden||GPSERR===1)return;if(!FIX||Date.now()-FIX.t>20000){try{if(GW!=null)navigator.geolocation.clearWatch(GW)}catch(e){}GW=null;gpsGlobal()}})}
 $('gt').onclick=()=>{if(GW!=null){try{navigator.geolocation.clearWatch(GW)}catch(e){}GW=null}GPSERR=null;gpsGlobal();gpsChip();toast('Reiniciando GPS…')};
 /* ================= ODÓMETRO POR TRAMOS: distancia real del recorrido (con curvas y giros) =================
@@ -1023,7 +1067,7 @@ $('fCam').onchange=foto;$('fGal').onchange=foto;
  vocSync();
  try{const l=JSON.parse(localStorage.getItem('dcvg_estado_v4')||'null');if(l&&l.pts&&(!s||(l._ts||0)>(s._ts||0)))s=l}catch(e){}
  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
- E=s||{v:4,meta:defMeta(),pts:[]};E.meta=Object.assign(defMeta(),E.meta);E.pts.forEach(p=>{p.fotos=p.fotos||[]});upAll();
+ E=s||{v:4,meta:defMeta(),pts:[]};E.meta=Object.assign(defMeta(),E.meta);try{if(E.rawId&&ok){const rr=await DB.get('kv','trkraw');if(rr&&rr.id===E.rawId&&Array.isArray(rr.a))TKR=rr}}catch(e){}setTimeout(()=>trkRefine(true),2500);try{window.addEventListener('online',()=>setTimeout(()=>trkRefine(true),800))}catch(e){}E.pts.forEach(p=>{p.fotos=p.fotos||[]});upAll();
  if(!ok)toast('Aviso: este navegador no permite guardar fotos en el equipo',4500);
  render();setSave('ok');if(E.pts.length){const fz=E.pts.some(p=>p.tipo==='fin');toast((fz?'Inspección finalizada recuperada · ':'Inspección en curso recuperada · ')+E.pts.length+' punto'+(E.pts.length===1?'':'s')+(fz?'. Recuerde exportarla en Datos.':''),fz?4500:3200)}if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});gpsArranque();gpsChip();odoBoot();
  try{let dr=null;try{dr=JSON.parse(localStorage.getItem('dcvg_borrador')||'null')}catch(e){}if(!(dr&&dr.D)&&ok){try{dr=await DB.get('kv','borrador')}catch(e){}}
