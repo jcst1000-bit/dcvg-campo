@@ -190,7 +190,7 @@ const norm=s=>String(s==null?'':s).trim().replace(',','.');
 const TIPOS={inicio:{n:'Inicio',c:'#00ff9c'},pot:{n:'Punto / PK',c:'#00e5ff'},anom:{n:'Anomalía',c:'#ffd400'},marca:{n:'Marca',c:'#d0b8ff'},fin:{n:'Fin',c:'#ff6b6b'}};
 function gms(v,lat){const h=lat?(v>=0?'N':'S'):(v>=0?'E':'W');const a=Math.abs(v);let d=Math.floor(a),m=Math.floor((a-d)*60),s=((a-d)*60-m)*60;s=Math.round(s*1e5)/1e5;if(s>=60){s=0;m++}if(m>=60){m=0;d++}
  const ss=s.toFixed(5);return pad(d,2)+'°'+pad(m,2)+"'"+(ss.indexOf('.')<2?'0'+ss:ss)+'"'+h}
-function pkTxt(pk){const v=$n(pk);if(v==null)return String(pk||'');const t=Math.round(v);return Math.floor(t/1000)+'+'+pad(t%1000,3)}
+function pkTxt(pk){const v=$n(pk);if(v==null)return String(pk||'');const t=Math.round(v);return pad(Math.floor(t/1000),2)+'+'+pad(t%1000,3)}
 const hoy=()=>{const d=new Date();return pad(d.getDate(),2)+'/'+pad(d.getMonth()+1,2)+'/'+d.getFullYear()};
 const defMeta=()=>({fecha:hoy(),empresa:'',proyecto:'',diametro:'',lugar_ini:'',lugar_fin:'',sector_tramo:'',ubicacion:'',sector:'',voltage:'',corriente:'',pot_on:'',pot_off:'',int_on:'',int_off:'',r1:'',r2:'',r3:'',titulo_dcvg:'',titulo_log:'',hito_dcvg:1,hito_consol:1,estampar:true,neg_auto:true,usa_rect:false,usa_res:false,res_tramos:[]});
 // Posición EXACTA en la planilla (fila,col) de cada dato de cabecera
@@ -546,7 +546,7 @@ render=function(){const g=VIEW==='gps';document.body.classList.toggle('gpsv',g);
 const _gpsChip0=gpsChip;
 gpsChip=function(){_gpsChip0.apply(this,arguments);try{if(FIX&&FIX!==GM.lastFix){GM.lastFix=FIX;trkAdd(FIX)}gmFix()}catch(e){console.error(e)}};
 const _cancel0=cancelarInsp;
-cancelarInsp=async function(){const n=E.pts.length;await _cancel0.apply(this,arguments);if(n&&!E.pts.length){E.trk=[];E.rawId=null;TKR=null;GM.fitted=false;TK.kf=null;TK.ref=null}};
+cancelarInsp=async function(){const n=E.pts.length;await _cancel0.apply(this,arguments);if(n&&!E.pts.length){try{clearTimeout(dt);clearTimeout(tm);clearTimeout(TK.rt);try{await delBorrador()}catch(e){}odoReset();E.odo=null;E.mig=[];E.trk=[];E.rawId=null;TKR=null;TKD.pk=[];TKD.on=false;TKD.lp=0;TKD.p1=0;TKD.p2=0;TKD.last=0;TK.kf=null;TK.ref=null;TK.mv=false;TK.seg=0;TK.bad=0;GM.fitted=false;D=null;EDIT=null;ADDED=[];REMOVED=[];PZ=null;INC=false;$('sheet').classList.remove('on');ODO_AS='';await flush();render()}catch(e){console.error(e)}}};
 
 function ir(v){VIEW=v;document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));render();scrollTo(0,0)}
 function renderTabs(){$('tabs').innerHTML=TABS.map(t=>'<button data-v="'+t[0]+'" class="'+(VIEW===t[0]?'on':'')+'">'+ic(t[1])+t[2]+'</button>').join('')}
@@ -749,7 +749,7 @@ function abrir(tipo,id,draft){
  ADDED=[];REMOVED=[];
  if(draft){D=draft.D;EDIT=draft.EDIT;ADDED=draft.ADDED||[];REMOVED=draft.REMOVED||[]}
  else if(id){const p=E.pts.find(x=>x.id===id);EDIT=id;D=JSON.parse(JSON.stringify(p))}
- else{EDIT=null;const nA=E.pts.filter(p=>p.tipo==='anom').length+1;
+ else{EDIT=null;const aN=E.pts.filter(p=>p.tipo==='anom'),nA=Math.max(aN.length,Math.max.apply(null,[0].concat(aN.map(p=>{const m=/(\d+)\s*$/.exec(String(p.desc||''));return m?Number(m[1]):0}))))+1;
   D={id:uid(),tipo:tipo,desc:tipo==='inicio'?'INICIO':tipo==='fin'?'FIN':tipo==='anom'?'ANOMALÍA '+nA:'',pk:tipo==='inicio'?'0':'',on:'',off:'',n:'',s:'',e:'',o:'',olre:'',acon:'',acoff:'',lat:'',lon:'',acc:'',r1:'',r2:'',r3:'',nota:'',fotos:[],t:Date.now()};if(odoOn()&&tipo!=='inicio'){D.pk=String(r2(odoPK()));D.pkAuto=true}}
  pintarEd();$('sheet').classList.add('on');
  if(!id&&!draft)aplicarFix(true);gpsEstado();}
@@ -1023,7 +1023,7 @@ function campoNum(id,l,o){o=o||{};return '<div><label>'+l+'</label><div class="r
 function pintarEd(){const T=TIPOS[D.tipo],t=D.tipo;let h='';
  $('st').innerHTML=(EDIT?'Editar · ':'Nuevo · ')+'<span style="color:'+T.c+'">'+T.n+'</span>';
  const ult=E.pts.filter(p=>p.id!==D.id).map(p=>$n(p.pk)).filter(v=>v!=null);
- h+='<label>PK · distancia (metros)</label><input id="e_pk" inputmode="decimal" autocomplete="off" data-k="pk" value="'+esc(D.pk)+'"><div class="hint">'+(ult.length?'Último PK registrado: '+Math.max.apply(null,ult)+' m':'Primer punto')+' · <b id="pkx">'+pkTxt(D.pk)+'</b><span id="pka" style="color:var(--ok)'+(D.pkAuto?'':';display:none')+'"> · automático (odómetro)</span></div>';
+ h+='<label>PK · distancia (metros)</label><input id="e_pk" inputmode="decimal" autocomplete="off" data-k="pk" value="'+esc(D.pk)+'"><div class="hint">'+(ult.length?'Último PK registrado: '+Math.max.apply(null,ult)+' m':'Primer punto')+' · <b id="pkx">'+pkTxt(D.pk)+'</b><span id="pka" style="color:var(--ok)'+(D.pkAuto?'':';display:none')+'"></span></div>';
  if(!EDIT)h+='<div class="qk"><button data-pkq="0.5">+0,5 m</button><button data-pkq="1">+1 m</button><button data-pkq="2">+2 m</button><button data-pkq="5">+5 m</button></div><div class="hint">Atajo exacto: PK = último punto + esos metros (ej. un comentario a 1 m del anterior). El odómetro sigue desde ahí.</div>';
  h+='<label>Descripción</label><input id="e_desc" class="t" data-k="desc" autocomplete="off" value="'+esc(D.desc)+'">';
  if(t==='marca'){VOC_OPEN=false;h+='<div id="vc">'+vocHtml()+'</div>'}
@@ -1048,7 +1048,7 @@ async function delBorrador(){try{localStorage.removeItem('dcvg_borrador')}catch(
 function guardarBorrador(){clearTimeout(dt);if(D){try{localStorage.setItem('dcvg_borrador',JSON.stringify(borradorObj()))}catch(e){}}dt=setTimeout(()=>{if(D)DB.put('kv','borrador',borradorObj()).catch(()=>{})},400)}
 $('sb').addEventListener('input',e=>{const t=e.target;if(t.dataset.av){const k=t.dataset.av,v=String(D[k]||''),L=(v[0]==='A'||v[0]==='C')?v[0]:'';t.value=t.value.replace(/[^0-9]/g,'');acSet(k,L,t.value);guardarBorrador();return}if(!t.dataset.k)return;if(t.tagName==='TEXTAREA'||t.dataset.k==='desc')up(t);D[t.dataset.k]=t.value;if(t.dataset.k==='pk'){D.pkAuto=false;const xa=$('pka');if(xa)xa.style.display='none'}if(t.id==='e_lat'||t.id==='e_lon')D.gpsManual=true;vivo();guardarBorrador()
  if(0){}});
-$('sb').addEventListener('focusout',e=>{const t=e.target;if((t.id==='e_on'||t.id==='e_off')&&E.meta.neg_auto){const v=$n(t.value);if(v!=null&&v>0){t.value='-'+t.value.trim().replace(',','.');D[t.dataset.k]=t.value;vivo()}}});
+$('sb').addEventListener('focusout',e=>{const t=e.target;if(t.id==='e_pk'){const m=/^\s*(\d+)\s*\+\s*(\d{3})\s*$/.exec(t.value);if(m){t.value=String(Number(m[1])*1000+Number(m[2]));D.pk=t.value;D.pkAuto=false;const xa=$('pka');if(xa)xa.style.display='none';vivo()}}if((t.id==='e_on'||t.id==='e_off')&&E.meta.neg_auto){const v=$n(t.value);if(v!=null&&v>0){t.value='-'+t.value.trim().replace(',','.');D[t.dataset.k]=t.value;vivo()}}});
 $('sb').addEventListener('click',async e=>{const b=e.target.closest('button,img');if(!b)return;
  if(b.dataset.l){const w=b.closest('[data-ac]'),k=w.dataset.ac,N=w.querySelector('input').value;acSet(k,b.dataset.l,N);w.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));guardarBorrador();vib()}
  else if(b.dataset.pm){const i=$(b.dataset.pm),v=i.value.trim();i.value=v[0]==='-'?v.slice(1):(v?'-'+v:'-');D[i.dataset.k]=i.value;vivo();vib()}
@@ -1070,8 +1070,8 @@ $('sx').onclick=()=>cerrarEd(false);
 $('sf').addEventListener('click',async e=>{const b=e.target.closest('[data-s]');if(!b)return;const a=b.dataset.s;
  if(a==='cancel')return cerrarEd(false);
  if(a==='del'){if(!await dlgConfirm('¿Quitar este punto y sus fotos?'))return;const p=E.pts.find(x=>x.id===EDIT);if(p)for(const id of p.fotos)await borrarFoto(id);for(const id of ADDED)await borrarFoto(id);E.pts=E.pts.filter(x=>x.id!==EDIT);ADDED=[];REMOVED=[];await flush();return cerrarEd(true)}
- if(a==='ok'||a==='okn'){if(!EDIT&&D.pkAuto&&odoOn()){D.pk=String(r2(odoAlGuardar()))}if($n(D.pk)==null){toast('Escriba la distancia (PK) en metros');$('e_pk').focus();return}
-  const dup=E.pts.some(p=>p.id!==D.id&&$n(p.pk)===$n(D.pk)&&p.tipo===D.tipo);
+ if(a==='ok'||a==='okn'){if(!EDIT&&D.pkAuto&&odoOn()){D.pk=String(r2(odoAlGuardar()))}if(String(D.pk==null?'':D.pk).trim()===''){toast('Escriba el PK (metros o texto)');$('e_pk').focus();return}
+  const dup=$n(D.pk)!=null&&E.pts.some(p=>p.id!==D.id&&$n(p.pk)===$n(D.pk)&&p.tipo===D.tipo);
   if(!EDIT&&!D.gpsManual&&FIX){const g=fixProm()||FIX;D.lat=+g.lat.toFixed(8);D.lon=+g.lon.toFixed(8);D.acc=g.acc;D.ng=g.n||1}
   if(!EDIT&&E.mig)D.mi=E.mig.length;
   const sinGps=$n(D.lat)==null;delete D.gpsManual;
