@@ -277,7 +277,7 @@ function up(t){const a=t.selectionStart,b=t.selectionEnd,v=t.value.toUpperCase()
 function upAll(){['empresa','proyecto','diametro','lugar_ini','lugar_fin','sector_tramo','ubicacion','sector','titulo_dcvg','titulo_log'].forEach(k=>{if(typeof E.meta[k]==='string')E.meta[k]=E.meta[k].toUpperCase()});E.pts.forEach(p=>{['desc','nota'].forEach(k=>{if(typeof p[k]==='string')p[k]=p[k].toUpperCase()})})}
 function noAuto(){document.querySelectorAll('input:not([type=checkbox]),textarea').forEach(e=>{e.setAttribute('autocomplete','off');e.setAttribute('autocorrect','off');e.setAttribute('spellcheck','false')})}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const VER='v18-2026-11-03';
+const VER='v19-2026-11-03';
 let E=null,PH={},D=null,EDIT=null,ADDED=[],REMOVED=[],stopGPS=null,VIEW='rec';
 
 /* ---------- almacenamiento local (IndexedDB) ---------- */
@@ -411,7 +411,7 @@ function gmRender(){GM.raf=0;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
   for(let i=-R2;i<R2;i+=g){c.beginPath();c.moveTo(i,-R2);c.lineTo(i,R2);c.moveTo(-R2,i);c.lineTo(R2,i);c.stroke()}c.restore()}
  // recorrido
  const L=gmLine();
- if(L.length>1){c.lineJoin='round';c.lineCap='round';c.beginPath();const S=L.map(q=>P(q[0],q[1]));c.moveTo(S[0][0],S[0][1]);for(let i=1;i<S.length-1;i++){c.quadraticCurveTo(S[i][0],S[i][1],(S[i][0]+S[i+1][0])/2,(S[i][1]+S[i+1][1])/2)}c.lineTo(S[S.length-1][0],S[S.length-1][1]);
+ if(L.length>1){c.lineJoin='round';c.lineCap='round';c.beginPath();gmPath(c,L.map(q=>P(q[0],q[1])),W,H);
   c.strokeStyle='rgba(0,0,0,.75)';c.lineWidth=8;c.stroke();c.strokeStyle='#ffd400';c.lineWidth=4.5;c.stroke()}
  // marcadores
  const pts=gmPts(),ord=pts.slice().sort((a,b)=>({anom:1,marca:0,pot:0,inicio:2,fin:2}[a.tipo]||0)-({anom:1,marca:0,pot:0,inicio:2,fin:2}[b.tipo]||0));
@@ -426,6 +426,17 @@ function gmRender(){GM.raf=0;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
  // escala
  const mpp=156543.03*Math.cos(GM.lat*Math.PI/180)/Math.pow(2,z);let m=[1,2,5,10,20,50,100,200,500,1000,2000,5000,10000,20000,50000].find(v=>v/mpp>=70)||50000;
  c.fillStyle='rgba(0,0,0,.6)';c.fillRect(12,H-34,m/mpp+10,22);c.fillStyle='#fff';c.fillRect(17,H-18,m/mpp,2);c.font='700 11px system-ui';c.fillText(m>=1000?m/1000+' km':m+' m',19,H-22)}
+// Dibuja la línea recortada a la pantalla: con mucho zoom los puntos quedan a decenas de miles de píxeles y el navegador deja de dibujar el trazo
+function gmPath(c,S,W,H){const M=1500,X0=-M,Y0=-M,X1=W+M,Y1=H+M;let pen=false;
+ const seg=(ax,ay,bx,by)=>{let t0=0,t1=1;const dx=bx-ax,dy=by-ay,p=[-dx,dx,-dy,dy],q=[ax-X0,X1-ax,ay-Y0,Y1-ay];
+  for(let i=0;i<4;i++){if(p[i]===0){if(q[i]<0){pen=false;return}}else{const r=q[i]/p[i];if(p[i]<0){if(r>t1){pen=false;return}if(r>t0)t0=r}else{if(r<t0){pen=false;return}if(r<t1)t1=r}}}
+  if(!pen||t0>0)c.moveTo(ax+t0*dx,ay+t0*dy);c.lineTo(ax+t1*dx,ay+t1*dy);pen=t1>=1};
+ const quad=(x0,y0,cx,cy,x1,y1)=>{const out=Math.max(x0,cx,x1)<X0||Math.min(x0,cx,x1)>X1||Math.max(y0,cy,y1)<Y0||Math.min(y0,cy,y1)>Y1;
+  const n=out?1:Math.min(16,Math.max(1,Math.ceil((Math.hypot(cx-x0,cy-y0)+Math.hypot(x1-cx,y1-cy))/25)));let lx=x0,ly=y0;
+  for(let k=1;k<=n;k++){const u=k/n,v=1-u,x=v*v*x0+2*v*u*cx+u*u*x1,y=v*v*y0+2*v*u*cy+u*u*y1;seg(lx,ly,x,y);lx=x;ly=y}};
+ let px=S[0][0],py=S[0][1];
+ for(let i=1;i<S.length-1;i++){const mx2=(S[i][0]+S[i+1][0])/2,my2=(S[i][1]+S[i+1][1])/2;quad(px,py,S[i][0],S[i][1],mx2,my2);px=mx2;py=my2}
+ seg(px,py,S[S.length-1][0],S[S.length-1][1])}
 function gmMark(c,p,x,y){const T=p.tipo;c.save();c.translate(x,y);c.lineWidth=2;c.strokeStyle='#000';
  if(T==='anom'){const a=acLet(p.acon),b=acLet(p.acoff),k=a&&b?(a===b?a+a:'AC'):'',col=k?AC_TIPO[k].c:'#ffd400';c.fillStyle=col;c.beginPath();
   if(k==='AA'){c.moveTo(0,-11);c.lineTo(11,0);c.lineTo(0,11);c.lineTo(-11,0)}else if(k==='CC'){c.moveTo(0,-11);c.lineTo(11,9);c.lineTo(-11,9)}else c.arc(0,0,10,0,7);
