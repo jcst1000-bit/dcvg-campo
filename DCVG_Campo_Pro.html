@@ -330,13 +330,14 @@ const GY={g:null,psi:0,tl:0,tb:0,bias:0,buf:[],k:0,ok:false,sc:0,se:0,sh:0,lp:nu
 const gyWr=a=>{a=a%(2*Math.PI);if(a>Math.PI)a-=2*Math.PI;else if(a<-Math.PI)a+=2*Math.PI;return a};
 function gySaveB(){if(GY.bn>=1)try{localStorage.setItem('dcvg_gy_bv',JSON.stringify(GY.bv))}catch(e){}}
 try{window.addEventListener('pagehide',gySaveB)}catch(e){}
+try{document.addEventListener('visibilitychange',()=>{if(document.hidden)gySaveB()})}catch(e){}
 try{const bb=JSON.parse(localStorage.getItem('dcvg_gy_bv')||'null');if(Array.isArray(bb)&&bb.length===3&&bb.every(x=>isFinite(x)&&Math.abs(x)<5)){GY.bv=bb;GY.bn=1}}catch(e){}
 try{const kk=+localStorage.getItem('dcvg_gy_k');if(kk===1||kk===-1){GY.k=kk;GY.ok=true;GY.sc=kk*0.5;GY.se=0.5;GY.sh=0.5}}catch(e){}
 function gyMotion(e){try{const r=e.rotationRate,a=e.accelerationIncludingGravity;if(!r||r.alpha==null||!a||a.x==null)return;
  const t=Date.now();let G=GY.g;if(!G){GY.g={x:a.x,y:a.y,z:a.z};GY.tl=t;return}
  G.x+=0.06*(a.x-G.x);G.y+=0.06*(a.y-G.y);G.z+=0.06*(a.z-G.z);
  const gn=Math.hypot(G.x,G.y,G.z);if(gn<4){GY.tl=t;return}
- const dt=(t-GY.tl)/1000;GY.tl=t;if(dt<=0||dt>0.25)return;
+ const dt=(t-GY.tl)/1000;GY.tl=t;if(dt>1.5&&GY.On>=3){GY.On=3;GY.fr=1}if(dt<=0||dt>0.25)return;
  if(Math.hypot(r.alpha,r.beta,r.gamma)<2&&Math.hypot(a.x-G.x,a.y-G.y,a.z-G.z)<0.6){GY.bn=Math.min(8,GY.bn+dt);const al=dt/GY.bn,bv=GY.bv;bv[0]+=(r.alpha-bv[0])*al;bv[1]+=(r.beta-bv[1])*al;bv[2]+=(r.gamma-bv[2])*al;GY.bias-=GY.bias*Math.min(1,dt/8);if(t-GY.bs>15000){GY.bs=t;gySaveB()}}
  const w=((r.alpha-GY.bv[0])*G.z+(r.beta-GY.bv[1])*G.x+(r.gamma-GY.bv[2])*G.y)/gn;if(!isFinite(w))return;
  
