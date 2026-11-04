@@ -408,7 +408,9 @@ function trkRaw(f){if(!E)return;if(!E.rawId)E.rawId=Math.random().toString(36).s
 function trkPred(s,dt){const q=0.5*0.5;s.x+=s.vx*dt;s.y+=s.vy*dt;const pp=s.pp+2*dt*s.pv+dt*dt*s.vv+q*dt*dt*dt*dt/4,pv=s.pv+dt*s.vv+q*dt*dt*dt/2,vv=s.vv+q*dt*dt;s.pp=pp;s.pv=pv;s.vv=vv}
 function trkUpP(s,zx,zy,R2){const S=s.pp+R2,Kp=s.pp/S,Kv=s.pv/S,ix=zx-s.x,iy=zy-s.y;s.x+=Kp*ix;s.y+=Kp*iy;s.vx+=Kv*ix;s.vy+=Kv*iy;const pp=(1-Kp)*s.pp,pv=s.pv-Kp*s.pv,vv=s.vv-Kv*s.pv;s.pp=pp;s.pv=pv;s.vv=vv}
 function trkUpV(s,zx,zy,R2){const S=s.vv+R2,Kp=s.pv/S,Kv=s.vv/S,ix=zx-s.vx,iy=zy-s.vy;s.x+=Kp*ix;s.y+=Kp*iy;s.vx+=Kv*ix;s.vy+=Kv*iy;const pp=s.pp-Kp*s.pv,pv=s.pv-Kp*s.vv,vv=(1-Kv)*s.vv;s.pp=pp;s.pv=pv;s.vv=vv}
-function trkAdd(f){if(!E||!f||f.acc>25)return;gmSync();const t=E.trk=E.trk||[];
+/* Inspección ya FINALIZADA (hay punto FIN y el odómetro no está activo): el trazo GPS deja de grabarse y de dibujarse */
+function inspFin(){try{return !!(E&&E.pts&&E.pts.some(p=>p.tipo==='fin')&&!odoOn())}catch(e){return false}}
+function trkAdd(f){if(!E||!f||f.acc>25||inspFin())return;gmSync();const t=E.trk=E.trk||[];
  if(!t.length)E.trkC=1;
  if(!TK.ref)TK.ref=t.length?{lat:t[0][0],lon:t[0][1]}:{lat:f.lat,lon:f.lon};
  const z=trkXY(f.lat,f.lon),R=Math.max(f.acc,4)*1.3,R2=R*R,k=TK.kf;
@@ -513,7 +515,7 @@ function gmLine(){const pp=gmPts(),o=E.odo,od=o?(o.est==='fin'?(+o.total||0):(+o
  if(t.length<2){t=pp.slice().sort((a,b)=>(a.t||0)-(b.t||0)).map(p=>[+p.lat,+p.lon])}
  else{const ini=pp.find(p=>p.tipo==='inicio');if(ini){const d=Math.hypot((ini.lon-t[0][1])*111320*Math.cos(ini.lat*Math.PI/180),(ini.lat-t[0][0])*110540);if(d>8)t.unshift([+ini.lat,+ini.lon])}}
  // la línea siempre llega hasta donde estás, aunque el recorrido esté en pausa o sin confirmar la alerta
- const lv=gmLive();if(lv&&t.length&&trkMov()){const l=t[t.length-1],d=Math.hypot((lv[1]-l[1])*111320*Math.cos(lv[0]*Math.PI/180),(lv[0]-l[0])*110540);if(d>3)t.push(lv)}
+ const lv=gmLive();if(lv&&t.length&&trkMov()&&!inspFin()){const l=t[t.length-1],d=Math.hypot((lv[1]-l[1])*111320*Math.cos(lv[0]*Math.PI/180),(lv[0]-l[0])*110540);if(d>3)t.push(lv)}
  else if(lv&&!t.length&&FIX)t=[];
  return t}
 function gmTile(L,z,x,y){const k=L+z+'/'+x+'/'+y;let t=GM.tiles.get(k);if(t)return t;
