@@ -171,9 +171,9 @@ body.gpsv #v-gps{position:fixed;left:0;right:0;top:0;bottom:calc(74px + env(safe
 @media(max-width:440px){.tabs button{font-size:9.5px!important}}
 .dsh{background:#151b23;border:1px solid #2a3340;border-radius:22px;padding:12px;margin-bottom:12px;color:#fff;font-family:Cambria,Georgia,"Times New Roman",serif}
 .dsh .tt{background:#0b0e14;border:1.5px solid #3bc9d6;border-radius:12px;padding:9px 6px;text-align:center;font-weight:700;font-size:11.5px;letter-spacing:.12em;line-height:1.3;margin-bottom:12px;color:#fff}
-.dsh .hd{border-radius:8px;padding:8px 3px;text-align:center;font-weight:700;font-size:10.5px;line-height:1.25;color:#fff;border:1px solid rgba(0,0,0,.6)}
+.dsh .hd{border-radius:8px;padding:0 3px;height:54px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700;font-size:10px;line-height:1.25;color:#fff;border:1px solid rgba(0,0,0,.6)}.dsh .g3{align-items:start}.dsh .g3>div{min-width:0}
 .dsh .sv{display:grid;grid-template-columns:1fr 64px;gap:6px;margin-bottom:6px}.dsh .sv span{border-radius:8px;padding:9px 10px;font-weight:700;font-size:15px;color:#000;border:1.5px solid #333}.dsh .sv span+span{text-align:center}
-.dsh svg{display:block;margin:8px auto 0;width:100%;max-width:130px;height:auto}
+.dsh svg{display:block;margin:10px auto 0;width:100%;max-width:110px;height:auto}.dsh svg.bg{max-width:74px}
 .rs-r{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr;gap:4px;padding:8px 2px;border-top:1px solid var(--bd);font-weight:700;font-size:14px;color:var(--tx)}.rs-r span{text-align:right}.rs-r span:first-child{text-align:left}.rs-h{border-top:0;font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;padding-top:2px}\n</style></head><body>
 <div id="app">
  <div class="top"><div class="brand"><div class="logo" id="lg"></div><div><b>DCVG Campo Pro</b><small id="sub">Inspección</small></div></div><div class="tc"><div class="chip" id="sv"><i class="dot"></i><span>Listo</span></div><div class="chip" id="gt"><i class="dot"></i><span>GPS…</span></div></div><button class="x" id="ex" aria-label="Salir"></button></div>
@@ -786,13 +786,13 @@ function rRes(){
  const N=A.length,pc=n=>N?n/N*100:0;
  const DK={CC:{c:'#39bde0',t:'#ded9c4',a:'CAT\u00d3DICA-CAT\u00d3DICA'},AC:{c:'#ff0000',t:'#fba8b2',a:'AN\u00d3DICA-CAT\u00d3DICA'},AA:{c:'#00b050',t:'#dcea9f',a:'AN\u00d3DICA-AN\u00d3DICA'}};
  const FT='font-family:Cambria,Georgia,serif;font-weight:700;fill:#fff;text-anchor:middle;stroke:rgba(0,0,0,.65);stroke-width:3px;paint-order:stroke';
- const big=(k,n)=>{const D=DK[k],st=' fill="'+D.c+'" stroke="#0b0e14" stroke-width="4"',tx=(y,f)=>'<text x="100" y="'+y+'" style="'+FT+';font-size:'+f+'px">'+n+'</text>';
-  return '<svg viewBox="0 0 200 200" aria-hidden="true">'+(k==='CC'?'<polygon points="100,20 182,172 18,172"'+st+'/>'+tx(150,78):k==='AC'?'<circle cx="100" cy="100" r="80"'+st+'/>'+tx(126,78):'<polygon points="100,12 188,100 100,188 12,100"'+st+'/>'+tx(126,78))+'</svg>'};
+ const big=(k,n)=>{const D=DK[k],fs=String(n).length>1?56:78,st=' fill="'+D.c+'" stroke="#0b0e14" stroke-width="4"',tx=(y,f)=>'<text x="100" y="'+y+'" style="'+FT+';font-size:'+f+'px">'+n+'</text>';
+  return '<svg class="bg" viewBox="0 0 200 200" aria-hidden="true">'+(k==='CC'?'<polygon points="100,20 180,180 20,180"'+st+'/>'+tx(fs>70?158:152,fs):k==='AC'?'<circle cx="100" cy="100" r="80"'+st+'/>'+tx(100+Math.round(fs*.35),fs):'<polygon points="100,20 180,100 100,180 20,100"'+st+'/>'+tx(100+Math.round(fs*.35),fs))+'</svg>'};
  const don=(k,v)=>{const D=DK[k],C=2*Math.PI*80,a=Math.max(0,Math.min(100,v))/100*C,st=' fill="'+D.c+'" stroke="#0b0e14" stroke-width="3"',tx=(y)=>'<text x="100" y="'+y+'" style="'+FT+';font-size:25px">'+v.toFixed(2)+'%</text>';
   return '<svg viewBox="0 0 200 200" role="img" aria-label="'+v.toFixed(2)+'%"><circle cx="100" cy="100" r="80" fill="none" stroke="'+D.t+'" stroke-width="22"/>'
    +(a>0?'<circle cx="100" cy="100" r="80" fill="none" stroke="'+D.c+'" stroke-width="22" stroke-dasharray="'+a.toFixed(2)+' '+C.toFixed(2)+'" transform="rotate(-90 100 100)"/>':'')
    +(k==='CC'?'<polygon points="100,56 144,134 56,134"'+st+'/>'+tx(132):k==='AC'?'<circle cx="100" cy="100" r="42"'+st+'/>'+tx(109):'<polygon points="100,52 148,100 100,148 52,100"'+st+'/>'+tx(109))+'</svg>'};
- const hd=(k,two)=>'<div class="hd" style="background:'+DK[k].c+'">'+(two?'INDICACIONES<br>':'INDICACIONES ')+DK[k].a+'</div>';
+ const hd=(k,two)=>'<div class="hd" style="background:'+DK[k].c+'">INDICACIONES<br>'+DK[k].a.replace('-','-<br>')+'</div>';
  const K3=['CC','AC','AA'];
  h+='<div class="dsh"><div class="tt">TOTAL DE INDICACIONES SEG\u00daN SU CARACTERIZACI\u00d3N</div><div class="g3">'+K3.map(k=>'<div>'+hd(k,true)+big(k,cl[k])+'</div>').join('')+'</div></div>';
  const NM=['PEQUE\u00d1A','MEDIANA','GRANDE','SEVERA'],CO=['#92cddc','#c4d79b','#ffff66','#da9694'];
