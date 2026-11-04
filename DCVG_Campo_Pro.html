@@ -277,7 +277,7 @@ function up(t){const a=t.selectionStart,b=t.selectionEnd,v=t.value.toUpperCase()
 function upAll(){['empresa','proyecto','diametro','lugar_ini','lugar_fin','sector_tramo','ubicacion','sector','titulo_dcvg','titulo_log'].forEach(k=>{if(typeof E.meta[k]==='string')E.meta[k]=E.meta[k].toUpperCase()});E.pts.forEach(p=>{['desc','nota'].forEach(k=>{if(typeof p[k]==='string')p[k]=p[k].toUpperCase()})})}
 function noAuto(){document.querySelectorAll('input:not([type=checkbox]),textarea').forEach(e=>{e.setAttribute('autocomplete','off');e.setAttribute('autocorrect','off');e.setAttribute('spellcheck','false')})}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const VER='v22-2026-11-03';
+const VER='v23-2026-11-03';
 let E=null,PH={},D=null,EDIT=null,ADDED=[],REMOVED=[],stopGPS=null,VIEW='rec';
 
 /* ---------- almacenamiento local (IndexedDB) ---------- */
@@ -1232,8 +1232,8 @@ async function swCachePage(){try{if(!navigator.onLine)return;const c=await cache
    Se desbloquea manteniendo presionado el círculo central 2 s. */
 (function(){try{
 const st=document.createElement('style');st.textContent=
-'#pkb{position:fixed;left:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:25;display:none;align-items:center;gap:6px;padding:9px 13px;border-radius:99px;font-size:13px;font-weight:700;background:var(--card2);border:1px solid var(--bd);color:var(--tx);box-shadow:var(--sh)}'
-+'#pkb.on{display:flex}'
+'#pkb{display:none;cursor:pointer}'
++'#pkb.on{display:inline-flex}'
 +'#pk{position:fixed;inset:0;z-index:110;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px;touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:none;color:#4a5568;text-align:center;font-family:system-ui,sans-serif;padding:24px}'
 +'#pk.on{display:flex}'
 +'#pk .pd{width:10px;height:10px;border-radius:50%;background:#1f6f4f;animation:pkp 2s infinite}'
@@ -1245,7 +1245,7 @@ const st=document.createElement('style');st.textContent=
 +'#pk .pu i{position:absolute;left:0;right:0;bottom:0;height:0;background:#1d2a3a}'
 +'#pk .pu span{position:relative;pointer-events:none}';
 document.head.appendChild(st);
-const b=document.createElement('button');b.id='pkb';b.type='button';b.textContent='🌙 Modo bolsillo';document.body.appendChild(b);
+const b=document.createElement('button');b.id='pkb';b.type='button';b.className='chip';b.textContent='🌙 Bolsillo';b.setAttribute('aria-label','Modo bolsillo');const gt=document.getElementById('gt');(gt&&gt.parentNode?gt.parentNode:document.body).appendChild(b);
 const p=document.createElement('div');p.id='pk';
 p.innerHTML='<div class="pd"></div><div class="pt">Grabando recorrido</div><div class="pv" id="pk_v">0 m</div><div class="pg" id="pk_g">GPS…</div><div class="pu" id="pk_u"><i id="pk_f"></i><span>Mantenga presionado 2 s para desbloquear</span></div><div class="pg">Pantalla encendida y bloqueada al toque</div>';
 document.body.appendChild(p);
