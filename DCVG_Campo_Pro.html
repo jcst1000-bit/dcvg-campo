@@ -152,7 +152,7 @@ body.gpsv #v-gps{position:fixed;left:0;right:0;top:0;bottom:calc(74px + env(safe
 .gmb button.on{background:var(--ac);color:#000;border-color:var(--ac)}.gmb #glay{font-size:11px;width:auto;min-width:46px;padding:0 6px}
 .gmi{position:absolute;left:10px;right:10px;bottom:10px;max-width:420px;padding:10px 14px;border-radius:14px;background:rgba(0,0,0,.85);border:2px solid var(--bd);color:#fff;font-size:14px;display:none}.gmi.on{display:block}
 .tabs button{font-size:11px!important}
-.tabs>div{grid-template-columns:repeat(5,1fr)!important}
+.tabs>div{grid-template-columns:repeat(6,1fr)!important}
 
 .dlg{position:fixed;inset:0;z-index:140;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:22px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .dlg.on{display:flex;animation:in .18s ease}
@@ -162,13 +162,26 @@ body.gpsv #v-gps{position:fixed;left:0;right:0;top:0;bottom:calc(74px + env(safe
 .dlg .dm{font-size:15.5px;line-height:1.5;color:var(--tx);margin:0 0 16px;white-space:pre-line}
 .dlg input{width:100%;font-size:18px;padding:12px 14px;border-radius:14px;margin:0 0 16px}
 .dlg .dbt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dlg .dbt .btn{width:100%;padding:13px 10px;font-size:15px}
-</style></head><body>
+.rs-t{width:100%;border-collapse:collapse;font-size:14px}.rs-t th{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;text-align:right;padding:4px 4px}.rs-t th:first-child,.rs-t td:first-child{text-align:left}.rs-t td{text-align:right;padding:7px 4px;border-top:1px solid var(--bd);font-weight:700}
+.rs-big{font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1.05}.rs-big small{font-size:15px;color:var(--mu);font-weight:600;letter-spacing:0}
+.rs-tl{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:10px 4px;text-align:center}.rs-tl small{display:block;font-size:10px;color:var(--mu);font-weight:700;line-height:1.2;margin-top:4px}.rs-tl b{display:block;font-size:30px;line-height:1.1;margin-top:2px}
+.dn{width:92px;height:92px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),rgba(128,128,128,.28) 0);display:grid;place-items:center;margin:8px auto 0}.dn i{width:64px;height:64px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-style:normal}.dn b{font-size:11.5px}
+.rs-sv{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-radius:12px;margin-bottom:6px;font-weight:800;font-size:15px;color:#000}
+.rs-an{padding:11px;border-radius:16px;background:var(--card);border:1px solid var(--bd);margin-bottom:8px}.rs-an .k{font-weight:800;font-size:16px}.rs-an .r{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}.rs-an .c{margin-top:8px;font-size:15px;font-weight:700;word-break:break-all}.rs-an .g{font-size:12.5px;color:var(--mu);margin-top:2px;word-break:break-all}
+@media(max-width:440px){.tabs button{font-size:9.5px!important}}
+.dsh{background:#151b23;border:1px solid #2a3340;border-radius:22px;padding:12px;margin-bottom:12px;color:#fff;font-family:Cambria,Georgia,"Times New Roman",serif}
+.dsh .tt{background:#0b0e14;border:1.5px solid #3bc9d6;border-radius:12px;padding:9px 6px;text-align:center;font-weight:700;font-size:11.5px;letter-spacing:.12em;line-height:1.3;margin-bottom:12px;color:#fff}
+.dsh .hd{border-radius:8px;padding:8px 3px;text-align:center;font-weight:700;font-size:10.5px;line-height:1.25;color:#fff;border:1px solid rgba(0,0,0,.6)}
+.dsh .sv{display:grid;grid-template-columns:1fr 64px;gap:6px;margin-bottom:6px}.dsh .sv span{border-radius:8px;padding:9px 10px;font-weight:700;font-size:15px;color:#000;border:1.5px solid #333}.dsh .sv span+span{text-align:center}
+.dsh svg{display:block;margin:8px auto 0;width:100%;max-width:130px;height:auto}
+.rs-r{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr;gap:4px;padding:8px 2px;border-top:1px solid var(--bd);font-weight:700;font-size:14px;color:var(--tx)}.rs-r span{text-align:right}.rs-r span:first-child{text-align:left}.rs-h{border-top:0;font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;padding-top:2px}\n</style></head><body>
 <div id="app">
  <div class="top"><div class="brand"><div class="logo" id="lg"></div><div><b>DCVG Campo Pro</b><small id="sub">Inspección</small></div></div><div class="tc"><div class="chip" id="sv"><i class="dot"></i><span>Listo</span></div><div class="chip" id="gt"><i class="dot"></i><span>GPS…</span></div></div><button class="x" id="ex" aria-label="Salir"></button></div>
  <section class="view on" id="v-rec"></section>
  <section class="view" id="v-cab"></section>
  <section class="view" id="v-pla"></section>
  <section class="view" id="v-dat"></section>
+ <section class="view" id="v-res"></section>
 </div>
 <div class="tabs"><div id="tabs"></div></div>
 <div class="sheet" id="sheet"><div class="sh-h"><button class="x" id="sx"></button><b id="st">Punto</b><span class="chip" id="gp"><i class="dot"></i><span>GPS</span></span></div><div class="sh-b" id="sb"></div><div class="sh-f"><div id="sf"></div></div></div>
@@ -257,6 +270,7 @@ function desdePlanilla(o){const g={};o.celdas.forEach(c=>{g[c.fila+','+c.col]=c.
 
 const ICONS={cam:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',plus:'<path d="M12 5v14M5 12h14"/>',x:'<path d="M18 6 6 18M6 6l12 12"/>',trash:'<path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/>',share:'<path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M16 6l-4-4-4 4M12 2v14"/>',down:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',up:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',check:'<path d="M20 6 9 17l-5-5"/>',list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',tbl:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>',db:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.7-4 3-9 3s-9-1.3-9-3M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/>',gps:'<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',warn:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/>',bolt:'<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>',sl:'<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',img:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',pin:'<path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',play:'<path d="m6 4 14 8-14 8z"/>'};
 ICONS.power='<path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0"/>';
+ICONS.res='<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>';
 const ic=n=>'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+ICONS[n]+'</svg>';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const $=i=>document.getElementById(i);
@@ -277,7 +291,7 @@ function up(t){const a=t.selectionStart,b=t.selectionEnd,v=t.value.toUpperCase()
 function upAll(){['empresa','proyecto','diametro','lugar_ini','lugar_fin','sector_tramo','ubicacion','sector','titulo_dcvg','titulo_log'].forEach(k=>{if(typeof E.meta[k]==='string')E.meta[k]=E.meta[k].toUpperCase()});E.pts.forEach(p=>{['desc','nota'].forEach(k=>{if(typeof p[k]==='string')p[k]=p[k].toUpperCase()})})}
 function noAuto(){document.querySelectorAll('input:not([type=checkbox]),textarea').forEach(e=>{e.setAttribute('autocomplete','off');e.setAttribute('autocorrect','off');e.setAttribute('spellcheck','false')})}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const VER='v25-2026-11-03';
+const VER='v26-2026-11-04';
 let E=null,PH={},D=null,EDIT=null,ADDED=[],REMOVED=[],stopGPS=null,VIEW='rec';
 
 /* ---------- almacenamiento local (IndexedDB) ---------- */
@@ -301,7 +315,7 @@ var PED_QUIET=0,PED_PERM='';
 const vib=n=>{try{PED_QUIET=Math.max(PED_QUIET,Date.now()+(n||12)+400);navigator.vibrate&&navigator.vibrate(n||12)}catch(e){}};
 
 /* ---------- navegación ---------- */
-const TABS=[['rec','list','Recorrido'],['cab','sl','Info General'],['pla','tbl','Planilla'],['dat','db','Datos']];
+const TABS=[['rec','list','Recorrido'],['cab','sl','Info General'],['pla','tbl','Planilla'],['res','res','Resultados'],['dat','db','Datos']];
 /* ===== GPS MAP (canvas propio: rotación/zoom instantáneos) ===== */
 const GM={on:false,cv:null,cx:null,w:0,h:0,dpr:1,lat:4.6,lon:-74.07,z:17,rot:0,follow:true,layer:'sat',tiles:new Map(),raf:0,ptr:new Map(),g0:null,fitted:false,sel:null};
 const TL={sat:{u:(z,x,y)=>'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'+z+'/'+y+'/'+x,max:19,n:'Satélite'},
@@ -653,7 +667,7 @@ cancelarInsp=async function(){const n=E.pts.length;await _cancel0.apply(this,arg
 function ir(v){VIEW=v;document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));render();scrollTo(0,0)}
 function renderTabs(){$('tabs').innerHTML=TABS.map(t=>'<button data-v="'+t[0]+'" class="'+(VIEW===t[0]?'on':'')+'">'+ic(t[1])+t[2]+'</button>').join('')}
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(b)ir(b.dataset.v)};
-function render(){$('app').classList.toggle('wide',VIEW==='pla');document.body.classList.toggle('plv',VIEW==='pla');renderTabs();({rec:rRec,cab:rCab,pla:rPla,dat:rDat})[VIEW]();noAuto();ODO_AS='';odoPaint();const m=E.meta;$('sub').textContent=[m.empresa,m.proyecto].filter(Boolean).join(' · ')||'Inspección DCVG'}
+function render(){$('app').classList.toggle('wide',VIEW==='pla');document.body.classList.toggle('plv',VIEW==='pla');renderTabs();({rec:rRec,cab:rCab,pla:rPla,dat:rDat,res:rRes})[VIEW]();noAuto();ODO_AS='';odoPaint();const m=E.meta;$('sub').textContent=[m.empresa,m.proyecto].filter(Boolean).join(' · ')||'Inspección DCVG'}
 
 /* ---------- RECORRIDO ---------- */
 const tiene=t=>E.pts.some(p=>p.tipo===t);
@@ -750,6 +764,54 @@ function revisar(){const L=[],rows=calcular(E.pts,E.meta),P=E.pts;
 const slug=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,28);
 const nomFoto=(p,i)=>'PK'+pkTxt(p.pk).replace('+','_')+'_'+(slug(p.desc)||p.tipo)+'_'+(i+1)+'.jpg';
 let INC=false;
+function rRes(){
+ const P=ordenar(E.pts),ini=P.find(p=>p.tipo==='inicio'),fin=P.slice().reverse().find(p=>p.tipo==='fin'),rows=calcular(E.pts,E.meta);
+ const ks=P.map(p=>$n(p.pk)).filter(v=>v!=null);
+ const k0=ini&&$n(ini.pk)!=null?$n(ini.pk):(ks.length?Math.min.apply(null,ks):null);
+ const k1=fin&&$n(fin.pk)!=null?$n(fin.pk):(ks.length?Math.max.apply(null,ks):null);
+ const tot=(k0!=null&&k1!=null)?k1-k0:null;
+ const od=odoResumen(),dm=od&&od.distancia_total_m>0?od.distancia_total_m:null;
+ let h='<div class="card hero"><div class="lb" style="font-size:12px;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Recorrido total'+(fin?'':' (provisional: falta FIN)')+'</div>';
+ if(tot==null)h+='<div class="rs-big">\u2014</div><div class="hint">Todav\u00eda no hay PK para calcular el recorrido.</div>';
+ else h+='<div class="rs-big">'+Math.round(tot)+'<small> m</small></div><div class="hint">'+(tot/1000).toFixed(3)+' km \u00b7 PK '+pkTxt(k0)+' a PK '+pkTxt(k1)+'</div>';
+ if(dm!=null)h+='<div class="hint">Od\u00f3metro/GPS: '+Math.round(dm)+' m</div>';
+ h+='</div>';
+ const pr=(n,p)=>{const a=p?$n(p.on):null,b=p?$n(p.off):null,v=x=>x==null?'\u2014':fmt(x),c=a!=null&&b!=null;return '<div class="rs-r"><span>'+n+'</span><span>'+v(a)+'</span><span>'+v(b)+'</span><span>'+(c?v(a-b):'\u2014')+'</span><span>'+(c?v(Math.abs(a-b)):'\u2014')+'</span></div>'};
+ const tI=ini&&$n(ini.on)!=null&&$n(ini.off)!=null?Math.abs($n(ini.on)-$n(ini.off)):null,tF=fin&&$n(fin.on)!=null&&$n(fin.off)!=null?Math.abs($n(fin.on)-$n(fin.off)):null;
+ h+='<div class="card"><h3>'+ic('bolt')+'Potencial inicial y final</h3><div class="rs-r rs-h"><span></span><span>ON</span><span>OFF</span><span>\u0394P</span><span>Total</span></div>'+pr('Inicio',ini)+pr('Fin',fin)
+  +'<div class="hint">\u0394P = ON \u2212 OFF. Total = valor absoluto de \u0394P (el que usa la planilla para P/RE).</div>'
+  +(tI!=null&&tF!=null?'<div class="hint"><b>Variaci\u00f3n del total (fin \u2212 inicio): '+(tF-tI>0?'+':'')+fmt(tF-tI)+'</b></div>':'<div class="hint">Falta ON/OFF en '+(tI==null?'INICIO':'FIN')+' para calcular la variaci\u00f3n.</div>')+'</div>';
+ const A=rows.filter(r=>r.p.tipo==='anom'),cl={CC:0,AC:0,AA:0},sv=[0,0,0,0];let sa=0,si=0;
+ A.forEach(r=>{const a=acLet(r.p.acon),c=acLet(r.p.acoff);if(a&&c)cl[a===c?a+a:'AC']++;else sa++;if(r.pct==null)si++;else sv[r.pct<=15?0:r.pct<=35?1:r.pct<=60?2:3]++});
+ const N=A.length,pc=n=>N?n/N*100:0;
+ const DK={CC:{c:'#39bde0',t:'#ded9c4',a:'CAT\u00d3DICA-CAT\u00d3DICA'},AC:{c:'#ff0000',t:'#fba8b2',a:'AN\u00d3DICA-CAT\u00d3DICA'},AA:{c:'#00b050',t:'#dcea9f',a:'AN\u00d3DICA-AN\u00d3DICA'}};
+ const FT='font-family:Cambria,Georgia,serif;font-weight:700;fill:#fff;text-anchor:middle;stroke:rgba(0,0,0,.65);stroke-width:3px;paint-order:stroke';
+ const big=(k,n)=>{const D=DK[k],st=' fill="'+D.c+'" stroke="#0b0e14" stroke-width="4"',tx=(y,f)=>'<text x="100" y="'+y+'" style="'+FT+';font-size:'+f+'px">'+n+'</text>';
+  return '<svg viewBox="0 0 200 200" aria-hidden="true">'+(k==='CC'?'<polygon points="100,20 182,172 18,172"'+st+'/>'+tx(150,78):k==='AC'?'<circle cx="100" cy="100" r="80"'+st+'/>'+tx(126,78):'<polygon points="100,12 188,100 100,188 12,100"'+st+'/>'+tx(126,78))+'</svg>'};
+ const don=(k,v)=>{const D=DK[k],C=2*Math.PI*80,a=Math.max(0,Math.min(100,v))/100*C,st=' fill="'+D.c+'" stroke="#0b0e14" stroke-width="3"',tx=(y)=>'<text x="100" y="'+y+'" style="'+FT+';font-size:25px">'+v.toFixed(2)+'%</text>';
+  return '<svg viewBox="0 0 200 200" role="img" aria-label="'+v.toFixed(2)+'%"><circle cx="100" cy="100" r="80" fill="none" stroke="'+D.t+'" stroke-width="22"/>'
+   +(a>0?'<circle cx="100" cy="100" r="80" fill="none" stroke="'+D.c+'" stroke-width="22" stroke-dasharray="'+a.toFixed(2)+' '+C.toFixed(2)+'" transform="rotate(-90 100 100)"/>':'')
+   +(k==='CC'?'<polygon points="100,56 144,134 56,134"'+st+'/>'+tx(132):k==='AC'?'<circle cx="100" cy="100" r="42"'+st+'/>'+tx(109):'<polygon points="100,52 148,100 100,148 52,100"'+st+'/>'+tx(109))+'</svg>'};
+ const hd=(k,two)=>'<div class="hd" style="background:'+DK[k].c+'">'+(two?'INDICACIONES<br>':'INDICACIONES ')+DK[k].a+'</div>';
+ const K3=['CC','AC','AA'];
+ h+='<div class="dsh"><div class="tt">TOTAL DE INDICACIONES SEG\u00daN SU CARACTERIZACI\u00d3N</div><div class="g3">'+K3.map(k=>'<div>'+hd(k,true)+big(k,cl[k])+'</div>').join('')+'</div></div>';
+ const NM=['PEQUE\u00d1A','MEDIANA','GRANDE','SEVERA'],CO=['#92cddc','#c4d79b','#ffff66','#da9694'];
+ h+='<div class="dsh"><div class="tt">TOTAL DE INDICACIONES SEG\u00daN SU SEVERIDAD (%IR)</div>'
+  +NM.map((n,i)=>'<div class="sv"><span style="background:'+CO[i]+'">'+n+'</span><span style="background:'+CO[i]+'">'+sv[i]+'</span></div>').join('')
+  +'<div class="sv"><span style="background:#ddd">TOTAL ANOMAL\u00cdAS</span><span style="background:#ddd">'+N+'</span></div></div>';
+ h+='<div class="dsh"><div class="tt">PORCENTAJE DE INDICACIONES SEG\u00daN SU CARACTERIZACI\u00d3N</div><div class="g3">'+K3.map(k=>'<div>'+hd(k,false)+don(k,pc(cl[k]))+'</div>').join('')+'</div></div>';
+ if(sa)h+='<div class="hint">'+sa+' anomal\u00eda(s) sin A/C ON y OFF completos: no se cuentan en ninguna caracterizaci\u00f3n.</div>';
+ if(si)h+='<div class="hint">'+si+' anomal\u00eda(s) sin OL/RE o sin P/RE: no tienen % IR y no entran en ninguna severidad.</div>';
+ if(rows.nota)h+='<div class="hint">'+esc(rows.nota)+'</div>';
+ h+='<div style="height:10px"></div><div class="card"><h3>'+ic('pin')+'Anomal\u00edas y coordenadas</h3>';
+ if(!N)h+='<div class="hint">A\u00fan no hay anomal\u00edas registradas.</div>';
+ A.forEach(r=>{const p=r.p,la=$n(p.lat),lo=$n(p.lon),si2=r.pct==null?-1:(r.pct<=15?0:r.pct<=35?1:r.pct<=60?2:3);
+  h+='<div class="rs-an"><div class="k">'+esc(p.desc||'ANOMAL\u00cdA')+' \u00b7 PK '+esc(pkTxt(p.pk))+'</div><div class="r">'
+   +(r.pct!=null?'<span class="irb" style="background:'+irColor(r.pct)+';color:'+(r.pct>60||r.pct<=15?'#fff':'#000')+'">% IR '+r.pct.toFixed(2)+'</span><span class="chip">'+NM[si2]+'</span>':'<span class="chip">Sin % IR</span>')
+   +((p.acon||p.acoff)?acChip(p):'')+'</div>'
+   +(la!=null&&lo!=null?'<div class="c">'+la.toFixed(6)+', '+lo.toFixed(6)+'</div><div class="g">'+gms(la,true)+'  '+gms(lo,false)+'</div>':'<div class="g" style="margin-top:8px">Sin coordenadas GPS en este punto.</div>')+'</div>'});
+ h+='</div>';
+ $('v-res').innerHTML=h}
 function rDat(){preparar();let us='';const L=revisar();
  $('v-dat').innerHTML=instBanner(true)+'<div class="card"><h3>'+ic('share')+'Exportar</h3>'+L.map(x=>'<div class="ck '+x[0]+'">'+ic(x[0]==='ok'?'check':'warn')+'<div>'+x[1]+'</div></div>').join('')
  +'<div class="sw" style="margin-top:6px"><span>Incluir fotos dentro del JSON<small>Recomendado apagado: las fotos se envían aparte con Compartir fotos.</small></span><input type="checkbox" class="tg" id="inc" '+(INC?'checked':'')+'></div>'
