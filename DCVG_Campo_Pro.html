@@ -277,7 +277,7 @@ function up(t){const a=t.selectionStart,b=t.selectionEnd,v=t.value.toUpperCase()
 function upAll(){['empresa','proyecto','diametro','lugar_ini','lugar_fin','sector_tramo','ubicacion','sector','titulo_dcvg','titulo_log'].forEach(k=>{if(typeof E.meta[k]==='string')E.meta[k]=E.meta[k].toUpperCase()});E.pts.forEach(p=>{['desc','nota'].forEach(k=>{if(typeof p[k]==='string')p[k]=p[k].toUpperCase()})})}
 function noAuto(){document.querySelectorAll('input:not([type=checkbox]),textarea').forEach(e=>{e.setAttribute('autocomplete','off');e.setAttribute('autocorrect','off');e.setAttribute('spellcheck','false')})}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const VER='v24-2026-11-03';
+const VER='v25-2026-11-03';
 let E=null,PH={},D=null,EDIT=null,ADDED=[],REMOVED=[],stopGPS=null,VIEW='rec';
 
 /* ---------- almacenamiento local (IndexedDB) ---------- */
@@ -427,7 +427,7 @@ function trkAdd(f){if(!E||!f||f.acc>25)return;gmSync();const t=E.trk=E.trk||[];
 let RECBAD=0;
 function recAdd(f){if(!E||!f||f.acc>40)return;const ini=(E.pts||[]).some(p=>p.tipo==='inicio'),fin=(E.pts||[]).some(p=>p.tipo==='fin');if(!(odoOn()||(ini&&!fin)))return;
  const r=E.rec=E.rec||[],l=r[r.length-1];
- if(l){const d=Math.hypot((f.lon-l[1])*111320*Math.cos(f.lat*Math.PI/180),(f.lat-l[0])*110540),dt=f.t-l[2];if(d<3&&dt<20000)return;if(d>25&&dt<20000&&d/(Math.max(dt,500)/1000)>12&&!(f.v!=null&&f.acc<=20&&f.v>0.5*d/(Math.max(dt,500)/1000))&&RECBAD<3){RECBAD++;return}}
+ if(l){const d=Math.hypot((f.lon-l[1])*111320*Math.cos(f.lat*Math.PI/180),(f.lat-l[0])*110540),dt=f.t-l[2];if(d<3&&dt<20000)return;if(dt<60000&&d<Math.max(10,2.5*f.acc)&&(gqStill()||!((f.v>=0.8&&f.acc<=15)||trkMov())))return;if(d>25&&dt<20000&&d/(Math.max(dt,500)/1000)>12&&!(f.v!=null&&f.acc<=20&&f.v>0.5*d/(Math.max(dt,500)/1000))&&RECBAD<3){RECBAD++;return}}
  RECBAD=0;r.push([+f.lat.toFixed(6),+f.lon.toFixed(6),f.t,f.acc]);
  if(r.length>16000){const n=[];for(let i=0;i<8000;i++)if(!(i&1))n.push(r[i]);for(let i=8000;i<r.length;i++)n.push(r[i]);E.rec=n}
  trkSave()}
@@ -470,6 +470,7 @@ function trkRefine(soloQuieto){try{const R0=TKR;if(!E||!R0||R0.id!==E.rawId||R0.
  if(out.length<2)return;
  E.trk=out.map(p=>{const q=trkLL(p[0],p[1]);return[+q[0].toFixed(6),+q[1].toFixed(6)]});E.trkC=1;trkSave();gmDraw()}catch(e){console.error(e)}}
 function trkMov(){const n=Date.now();
+ if(gqStill()&&PED_REG<4)return false;
  if(ODOCFG.fuente!=='gps'&&odoOn()&&pedAlive())return PED_T>0&&n-PED_T<2500;
  if(n-TKD.t<3000)return trkDetMov(n);
  return !!(FIX&&FIX.v!=null&&FIX.v>=1.0&&FIX.acc<=15&&n-FIX.t<4000)}
@@ -645,7 +646,7 @@ render=function(){const g=VIEW==='gps';document.body.classList.toggle('gpsv',g);
  try{rGps()}catch(e){console.error(e)}
  try{noAuto();ODO_AS='';odoPaint();const m=E.meta;$('sub').textContent=[m.empresa,m.proyecto].filter(Boolean).join(' · ')||'Inspección DCVG'}catch(e){}};
 const _gpsChip0=gpsChip;
-gpsChip=function(){_gpsChip0.apply(this,arguments);try{if(FIX&&FIX!==GM.lastFix){GM.lastFix=FIX;try{recAdd(FIX)}catch(e){console.error(e)}trkAdd(FIX)}gmFix()}catch(e){console.error(e)}};
+gpsChip=function(){_gpsChip0.apply(this,arguments);try{if(FIX&&FIX!==GM.lastFix){GM.lastFix=FIX;try{gqFeed(FIX)}catch(e){}try{recAdd(FIX)}catch(e){console.error(e)}trkAdd(FIX)}gmFix()}catch(e){console.error(e)}};
 const _cancel0=cancelarInsp;
 cancelarInsp=async function(){const n=E.pts.length;await _cancel0.apply(this,arguments);if(n&&!E.pts.length){try{clearTimeout(dt);clearTimeout(tm);clearTimeout(TK.rt);try{await delBorrador()}catch(e){}odoReset();E.odo=null;E.mig=[];E.trk=[];E.rec=[];GM._lk=null;E.rawId=null;TKR=null;TKD.pk=[];TKD.on=false;TKD.lp=0;TKD.p1=0;TKD.p2=0;TKD.last=0;TK.kf=null;TK.ref=null;TK.mv=false;TK.seg=0;TK.bad=0;GY.lp=null;GY.On=0;GY.ot=0;GY.Hp=null;GY.He=null;GM.fitted=false;D=null;EDIT=null;ADDED=[];REMOVED=[];PZ=null;INC=false;$('sheet').classList.remove('on');ODO_AS='';await flush();render()}catch(e){console.error(e)}}};
 
@@ -1011,6 +1012,10 @@ function odoReset(){pedReset();ODO_KF=null;ODO_H=[];ODO_EV=null;ODO_PC=0;ODO_CUR
 function odoResumen(){const o=E&&E.odo;if(!o)return null;return{estado:o.est,distancia_total_m:o.est==='fin'?o.total:r2(o.dist),inicio:o.t0,config:ODOCFG,eventos:o.ev}}
 /* ---- PODÓMETRO: cuenta pasos con el acelerómetro; mide distancias cortas mejor que el GPS ---- */
 let PED_UT=0,PED_DUR=0,PED_LAST=0,PED_SIL=0,PED_B=null,PED_S=0,PED_UP=false,PED_T=0,PED_REG=0,PED_N=0,PED_PC=0,PED_CAL=null;
+/* GPS quieto sostenido: velocidad Doppler < 0,2 m/s con buena precisión durante >= 4 s. Evita que sacudidas del teléfono o ruido del GPS cuenten como caminata */
+let GQ_T0=null,GQ_LT=0;
+function gqFeed(f){if(!f||f.acc>15||f.v==null||!isFinite(f.v))return;GQ_LT=f.t;if(f.v<0.2){if(GQ_T0==null)GQ_T0=f.t}else if(f.v>=0.35)GQ_T0=null}
+function gqStill(){return GQ_T0!=null&&Date.now()-GQ_LT<4000&&GQ_LT-GQ_T0>=4000}
 const PED_TH=1.1;
 let ODO_W=null,PED_SD=0,ODO_SD0=0,ODO_SEG=null,ODO_PS=null,PED_A=0.9,PED_MX=0,PED_MT=0,PED_CALON=false,PED_CALN=0,PED_MV=1,PED_PK=1,ODO_NF=0,ODO_NR=0;
 const pedOK=()=>ODOCFG.fuente!=='gps'&&Date.now()-PED_LAST<3000;
@@ -1035,7 +1040,9 @@ function pedCand(t){const dt=t-PED_T;if(dt<300)return;PED_T=t;if(dt<=1100)PED_RE
  // Contar desde el primer paso: cada paso suma al instante. Un paso aislado solo vale si su fuerza es la de un paso real (ni roce ni golpe)
  if(ODOCFG.pri){if(PED_REG>1||(PED_MX>=0.55*PED_A&&PED_MX<=Math.max(4,4*PED_A)&&PED_DUR>=190&&PED_DUR<=600))pedStep(t);else PED_REG=0;return}
  if(PED_REG===4){for(let i=0;i<4;i++)pedStep(t)}else if(PED_REG>4)pedStep(t)}
-function pedStep(t){if(PED_CALON){PED_CALN++;return}const o=E&&E.odo;if(!o)return;const L=ODOCFG.paso;PED_N++;
+var PED_BYP=0;
+function pedStep(t){if(PED_CALON){PED_CALN++;return}const o=E&&E.odo;if(!o)return;
+ if(!PED_BYP&&gqStill()){if(PED_REG<4)return;if(PED_REG===4){PED_BYP=1;try{pedStep(t);pedStep(t);pedStep(t)}finally{PED_BYP=0}}}const L=ODOCFG.paso;PED_N++;
  if(o.est==='act'){o.dist+=L;o.cum=(o.cum||0)+L;PED_SD+=L;if(ODO_PS)ODO_PS.s+=L}
  else if(o.est==='pau'&&o.pau){o.cum=(o.cum||0)+L;const a=o.pau;a.ps=a.ps||[];a.ps.push([t,r2(o.cum)]);if(a.ps.length>600)a.ps.shift();pedDetecta(t)}
  else if(o.est==='pos'){o.cum=(o.cum||0)+L;o.tent+=L}
