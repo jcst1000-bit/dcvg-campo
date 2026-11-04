@@ -277,7 +277,7 @@ function up(t){const a=t.selectionStart,b=t.selectionEnd,v=t.value.toUpperCase()
 function upAll(){['empresa','proyecto','diametro','lugar_ini','lugar_fin','sector_tramo','ubicacion','sector','titulo_dcvg','titulo_log'].forEach(k=>{if(typeof E.meta[k]==='string')E.meta[k]=E.meta[k].toUpperCase()});E.pts.forEach(p=>{['desc','nota'].forEach(k=>{if(typeof p[k]==='string')p[k]=p[k].toUpperCase()})})}
 function noAuto(){document.querySelectorAll('input:not([type=checkbox]),textarea').forEach(e=>{e.setAttribute('autocomplete','off');e.setAttribute('autocorrect','off');e.setAttribute('spellcheck','false')})}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const VER='v20-2026-11-03';
+const VER='v21-2026-11-03';
 let E=null,PH={},D=null,EDIT=null,ADDED=[],REMOVED=[],stopGPS=null,VIEW='rec';
 
 /* ---------- almacenamiento local (IndexedDB) ---------- */
@@ -502,8 +502,9 @@ function gmLine(){const pp=gmPts(),o=E.odo,od=o?(o.est==='fin'?(+o.total||0):(+o
  else if(lv&&!t.length&&FIX)t=[];
  return t}
 function gmTile(L,z,x,y){const k=L+z+'/'+x+'/'+y;let t=GM.tiles.get(k);if(t)return t;
- t={img:new Image(),ok:false};t.img.crossOrigin='anonymous';t.img.onload=()=>{t.ok=true;gmDraw()};t.img.onerror=()=>{t.err=true};t.img.src=TL[L].u(z,x,y);
+ t={img:new Image(),ok:false};t.img.crossOrigin='anonymous';t.img.onload=()=>{t.ok=true;gmDraw()};t.img.onerror=()=>{t.err=true;setTimeout(()=>{if(GM.tiles.get(k)===t)GM.tiles.delete(k)},navigator.onLine?6000:20000)};t.img.src=TL[L].u(z,x,y);
  GM.tiles.set(k,t);if(GM.tiles.size>500){const it=GM.tiles.keys();for(let i=0;i<100;i++)GM.tiles.delete(it.next().value)}return t}
+try{addEventListener('online',()=>{GM.tiles.forEach((t,k)=>{if(t.err)GM.tiles.delete(k)});gmDraw()})}catch(e){}
 function gmDraw(){if(!GM.on||GM.raf)return;GM.raf=requestAnimationFrame(gmRender)}
 function gmRender(){GM.raf=0;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
  c.setTransform(GM.dpr,0,0,GM.dpr,0,0);c.fillStyle='#0b0f17';c.fillRect(0,0,W,H);
@@ -522,6 +523,7 @@ function gmRender(){GM.raf=0;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
   c.restore()}else{ // cuadrícula sin mapa
   c.strokeStyle='rgba(255,255,255,.07)';c.lineWidth=1;c.save();c.translate(W/2,H/2);c.rotate(R);const g=50,R2=Math.hypot(W,H);
   for(let i=-R2;i<R2;i+=g){c.beginPath();c.moveTo(i,-R2);c.lineTo(i,R2);c.moveTo(-R2,i);c.lineTo(R2,i);c.stroke()}c.restore()}
+ if(GM.layer!=='off'&&!navigator.onLine){c.save();c.font='600 11px system-ui,sans-serif';c.textAlign='center';const tx='Sin internet · se muestra el mapa guardado (el recorrido sigue midiéndose)',tw=c.measureText(tx).width+16;c.fillStyle='rgba(0,0,0,.6)';c.fillRect(W/2-tw/2,8,tw,20);c.fillStyle='#fff';c.fillText(tx,W/2,22);c.restore()}
  // recorrido
  const L=gmLine();
  if(L.length>1){c.lineJoin='round';c.lineCap='round';const runs=[],gp=[];let cu=[L[0]];
@@ -887,7 +889,8 @@ function gpsHz(){const n=GPS_TS.length;if(n<3||Date.now()-GPS_TS[n-1]>6000)retur
 function gpsReinicia(){if(GPSERR===1||!navigator.geolocation)return;try{if(GW!=null)navigator.geolocation.clearWatch(GW)}catch(e){}GW=null;GPS_RS++;setTimeout(gpsGlobal,300)}
 setInterval(()=>{if(document.hidden||GPSERR===1||GW==null)return;const t=Date.now();if(FIX?t-FIX.t>8000:(GPS_T0&&t-GPS_T0>20000))gpsReinicia()},4000);
 function gpsGlobal(){if(GW!=null||!navigator.geolocation)return;GPS_T0=Date.now();try{GW=navigator.geolocation.watchPosition(p=>{const q=p.coords;FIX={lat:q.latitude,lon:q.longitude,acc:Math.round(q.accuracy),t:Date.now(),v:(q.speed!=null&&isFinite(q.speed))?q.speed:null,h:(q.heading!=null&&isFinite(q.heading))?q.heading:null};GPS_TS.push(FIX.t);if(GPS_TS.length>12)GPS_TS.shift();GPSERR=null;try{fixBuf(FIX)}catch(e){console.error(e)}try{odoFix(FIX)}catch(e){console.error(e)}try{odoRefPK()}catch(e){console.error(e)}try{if(D&&!EDIT&&!D.gpsManual)aplicarFix(true)}catch(e){console.error(e)}gpsChip()},er=>{if(er.code===1){GPSERR=1;FIX=null}else gpsReinicia();gpsChip()},{enableHighAccuracy:true,maximumAge:0,timeout:20000})}catch(e){}}
-function gpsArranque(){if(!navigator.geolocation)return;gpsGlobal();addEventListener('pageshow',()=>{if(GW==null&&GPSERR!==1)gpsGlobal()});document.addEventListener('visibilitychange',()=>{if(document.hidden||GPSERR===1)return;if(!FIX||Date.now()-FIX.t>20000){try{if(GW!=null)navigator.geolocation.clearWatch(GW)}catch(e){}GW=null;gpsGlobal()}})}
+function gpsArranque(){if(!navigator.geolocation)return;gpsGlobal();addEventListener('pageshow',()=>{if(GW==null&&GPSERR!==1)gpsGlobal()});document.addEventListener('visibilitychange',()=>{if(document.hidden||GPSERR===1)return;if(!FIX||Date.now()-FIX.t>8000){try{if(GW!=null)navigator.geolocation.clearWatch(GW)}catch(e){}GW=null;gpsGlobal()}})}
+try{document.addEventListener('resume',()=>{try{if(GPSERR===1||!navigator.geolocation)return;if(GW!=null)navigator.geolocation.clearWatch(GW)}catch(e){}GW=null;gpsGlobal()})}catch(e){}
 $('gt').onclick=()=>{if(GW!=null){try{navigator.geolocation.clearWatch(GW)}catch(e){}GW=null}GPSERR=null;gpsGlobal();gpsChip();toast('Reiniciando GPS…')};
 /* ================= ODÓMETRO POR TRAMOS: distancia real del recorrido (con curvas y giros) =================
    Estados: act = RECORRIDO ACTIVO · pau = PAUSA DE MEDICIÓN · pos = POSIBLE REANUDACIÓN · fin = finalizado
@@ -1056,7 +1059,17 @@ function pedPermiso(){try{if(typeof DeviceMotionEvent!=='undefined'&&typeof Devi
 document.addEventListener('click',pedPermiso);
 ['pointerdown','pointerup','keydown'].forEach(n=>document.addEventListener(n,()=>{PED_QUIET=Math.max(PED_QUIET,Date.now()+450)},true));
 function odoTimer(){if(ODO_TM)return;ODO_TM=setInterval(()=>{if(!odoOn()){clearInterval(ODO_TM);ODO_TM=null;return}odoPaint();odoPers()},1000)}
-async function odoWL(on){try{if(on&&ODOCFG.pantalla&&navigator.wakeLock&&!ODO_WL){ODO_WL=await navigator.wakeLock.request('screen');ODO_WL.addEventListener('release',()=>{ODO_WL=null})}else if(!on&&ODO_WL){await ODO_WL.release();ODO_WL=null}}catch(e){}}
+async function odoWL(on){try{if(on&&ODOCFG.pantalla&&navigator.wakeLock&&!ODO_WL){ODO_WL=await navigator.wakeLock.request('screen');ODO_WL.addEventListener('release',()=>{ODO_WL=null;setTimeout(()=>{try{if(!document.hidden&&(odoOn()||inspActiva()))odoWL(true)}catch(e){}},300)})}else if(!on&&ODO_WL){await ODO_WL.release();ODO_WL=null}}catch(e){}}
+/* ===== Pantalla apagada (mejor esfuerzo): audio inaudible + MediaSession mantienen viva la página ===== */
+var BG_AU=null;
+function bgWav(){const sr=8000,n=sr,b=new ArrayBuffer(44+n*2),v=new DataView(b),w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);for(let i=0;i<n;i++)v.setInt16(44+i*2,Math.round(6*Math.sin(2*Math.PI*30*i/sr)),true);return URL.createObjectURL(new Blob([b],{type:'audio/wav'}))}
+function bgKeep(on){try{if(on){if(!ODOCFG.pantalla)return;if(!BG_AU){BG_AU=new Audio(bgWav());BG_AU.loop=true;BG_AU.volume=0.05;BG_AU.setAttribute('playsinline','')}
+ if(BG_AU.paused){const p=BG_AU.play();if(p&&p.catch)p.catch(()=>{})}
+ if('mediaSession' in navigator){try{navigator.mediaSession.metadata=new MediaMetadata({title:'DCVG Campo · recorrido en curso',artist:'Midiendo con GPS y pasos'})}catch(e){}}}
+ else if(BG_AU&&!BG_AU.paused)BG_AU.pause()}catch(e){}}
+['click','touchend'].forEach(n=>document.addEventListener(n,()=>{try{if(inspActiva())bgKeep(true)}catch(e){}}));
+document.addEventListener('visibilitychange',()=>{try{if(document.hidden&&inspActiva()&&BG_AU&&BG_AU.paused)bgKeep(true)}catch(e){}});
+setInterval(()=>{try{if(inspActiva()){if(BG_AU&&BG_AU.paused&&!document.hidden)bgKeep(true)}else bgKeep(false)}catch(e){}},5000);
 function odoDesbloquear(){try{ODO_AUD=ODO_AUD||new(window.AudioContext||window.webkitAudioContext)();if(ODO_AUD.state==='suspended')ODO_AUD.resume()}catch(e){}}
 function odoBeep(){if(!ODOCFG.sonido)return;try{const A=ODO_AUD;if(!A)return;if(A.state==='suspended')A.resume();const t=A.currentTime;[0,0.3].forEach(d=>{const o=A.createOscillator(),g=A.createGain();o.type='square';o.frequency.value=880;g.gain.setValueAtTime(0.0001,t+d);g.gain.exponentialRampToValueAtTime(0.35,t+d+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+d+0.24);o.connect(g);g.connect(A.destination);o.start(t+d);o.stop(t+d+0.26)})}catch(e){}}
 function odoAlerta(on){const a=$('alo');clearInterval(ODO_BP);ODO_BP=null;if(!a)return;
@@ -1198,7 +1211,7 @@ async function procesar(f){const b=await bmp(f),w0=b.width,h0=b.height,k=Math.mi
 async function foto(e){const fs=[].slice.call(e.target.files);e.target.value='';if(!fs.length||!D)return;toast('Procesando foto…',1500);for(const f of fs){try{await procesar(f)}catch(er){toast('No se pudo leer la imagen')}}fotos();guardarBorrador();vib(15)}
 $('fCam').onchange=foto;$('fGal').onchange=foto;
 
-const SWV='dcvg-campo-v7';
+const SWV='dcvg-campo-v14-2026-11-03';
 async function swCachePage(){try{if(!navigator.onLine)return;const c=await caches.open(SWV),rq=new Request(location.pathname,{cache:'reload'}),rs=await fetch(rq);if(rs&&rs.ok){await c.put(rq,rs.clone());await c.put(new URL('./',location.href).href,rs.clone())}}catch(e){}}
 /* ---------- arranque ---------- */
 (async function(){
