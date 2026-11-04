@@ -297,7 +297,8 @@ function persist(ya){setSave('…');saveSync();clearTimeout(tm);if(ya)flush();el
 async function flush(){clearTimeout(tm);let ok=saveSync();try{await DB.put('kv','estado',E);ok=true}catch(e){}setSave(ok?'ok':'err')}
 addEventListener('pagehide',()=>{flush();borradorAhora()});document.addEventListener('visibilitychange',()=>{if(document.hidden){flush();borradorAhora()}});
 function toast(t,ms){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),ms||2200)}
-const vib=n=>{try{navigator.vibrate&&navigator.vibrate(n||12)}catch(e){}};
+var PED_QUIET=0,PED_PERM='';
+const vib=n=>{try{PED_QUIET=Math.max(PED_QUIET,Date.now()+(n||12)+400);navigator.vibrate&&navigator.vibrate(n||12)}catch(e){}};
 
 /* ---------- navegación ---------- */
 const TABS=[['rec','list','Recorrido'],['cab','sl','Info General'],['pla','tbl','Planilla'],['dat','db','Datos']];
@@ -414,7 +415,22 @@ function trkAdd(f){if(!E||!f||f.acc>25)return;gmSync();const t=E.trk=E.trk||[];
  if(!emit&&dm>=3&&t.length>=2){const pr=trkXY(t[t.length-2][0],t[t.length-2][1]),a1=Math.atan2(L.y-pr.y,L.x-pr.x),a2=Math.atan2(k.y-L.y,k.x-L.x);let da=Math.abs(a2-a1);if(da>Math.PI)da=2*Math.PI-da;if(da>0.5)emit=true}
  if(!emit&&G&&GY.He!=null&&dm>=1.5&&Math.abs(gyWr(G.H-GY.He))>0.2)emit=true;
  if(!emit)return;GY.He=G?G.H:null;
- const ll=trkLL(k.x,k.y);t.push([+ll[0].toFixed(6),+ll[1].toFixed(6)]);if(t.length>12000)t.splice(1,1);trkSave()}
+ const ll=trkLL(k.x,k.y);t.push([+ll[0].toFixed(6),+ll[1].toFixed(6)]);if(t.length>14000){const n=[];for(let i=0;i<7000;i++)if(!(i&1))n.push(t[i]);for(let i=7000;i<t.length;i++)n.push(t[i]);t.length=0;n.forEach(x=>t.push(x))}trkSave()}
+/* Registro continuo independiente del detector de pasos: guarda TODA lectura GPS útil mientras la inspección está activa */
+let RECBAD=0;
+function recAdd(f){if(!E||!f||f.acc>40)return;const ini=(E.pts||[]).some(p=>p.tipo==='inicio'),fin=(E.pts||[]).some(p=>p.tipo==='fin');if(!(odoOn()||(ini&&!fin)))return;
+ const r=E.rec=E.rec||[],l=r[r.length-1];
+ if(l){const d=Math.hypot((f.lon-l[1])*111320*Math.cos(f.lat*Math.PI/180),(f.lat-l[0])*110540),dt=f.t-l[2];if(d<3&&dt<20000)return;if(d>25&&dt<20000&&d/(Math.max(dt,500)/1000)>12&&RECBAD<3){RECBAD++;return}}
+ RECBAD=0;r.push([+f.lat.toFixed(6),+f.lon.toFixed(6),f.t,f.acc]);
+ if(r.length>16000){const n=[];for(let i=0;i<8000;i++)if(!(i&1))n.push(r[i]);for(let i=8000;i<r.length;i++)n.push(r[i]);E.rec=n}
+ trkSave()}
+const GAPM=40;
+function recLine(){const r=E.rec||[],o=[];let l=null;for(const q of r){if(!l){o.push([q[0],q[1]]);l=q;continue}const d=Math.hypot((q[1]-l[1])*111320*Math.cos(q[0]*Math.PI/180),(q[0]-l[0])*110540);if(d>=5||(q[2]-l[2]>45000&&d>25)){o.push([q[0],q[1]]);l=q}}return o}
+function gmLen(a){let s=0,g=0;for(let i=1;i<a.length;i++){const d=Math.hypot((a[i][1]-a[i-1][1])*111320*Math.cos(a[i][0]*Math.PI/180),(a[i][0]-a[i-1][0])*110540);s+=d;if(d>GAPM)g+=d}return[s,g]}
+function gmBase(od){const T=(E.trk||[]).slice(),R=recLine(),M=(E.mig||[]).slice();const C=[T,R,M].filter(a=>a.length>=2);if(!C.length)return[];
+ const sc=C.map(a=>{const x=gmLen(a);return{a:a,l:x[0],g:x[1]}});
+ sc.forEach(x=>{x.s=od>20?x.g+Math.abs(x.l-od)-(x.a===T?0.03*Math.max(od,x.l):0):x.g*1000-x.l});
+ sc.sort((x,y)=>x.s-y.s);return sc[0].a}
 // Suavizado con toda la caminata (Kalman + RTS): corrige el trazo usando también las lecturas posteriores. No necesita internet.
 function trkRefine(soloQuieto){try{const R0=TKR;if(!E||!R0||R0.id!==E.rawId||R0.full||R0.a.length<4)return;if(soloQuieto&&trkMov())return;gmSync();
  if(!TK.ref)TK.ref={lat:R0.a[0][1],lon:R0.a[0][2]};
@@ -451,7 +467,7 @@ function trkMov(){const n=Date.now();
 function trkNuevo(p){try{TKD.pk=[];TKD.on=false;TKD.lp=0;TKD.p1=0;TKD.p2=0;TKD.last=0;clearTimeout(TK.rt);TKR=null;E.rawId=null;TK.kf=null;TK.mv=false;TK.seg=0;TK.bad=0;GY.lp=null;GY.Hp=null;GY.He=null;
  const la=p?$n(p.lat):null,lo=p?$n(p.lon):null;
  if(la!=null&&lo!=null){E.trk=[[+(+la).toFixed(6),+(+lo).toFixed(6)]];TK.ref={lat:+la,lon:+lo}}else{E.trk=[];TK.ref=null}
- E.trkC=1;GM.fitted=false;trkSave();gmDraw()}catch(e){console.error(e)}}
+ E.rec=[];RECBAD=0;GM._lk=null;E.trkC=1;GM.fitted=false;trkSave();gmDraw()}catch(e){console.error(e)}}
 function inspIniciar(p){trkNuevo(p);odoStart(0);inspVerif(0)}
 function inspVerif(d0){try{
  if(!E.odo||E.odo.est!=='act'){odoStart(d0)}else if(E.odo.dist!==d0){E.odo.dist=d0;E.odo.cum=0}
@@ -467,7 +483,8 @@ function inspVerif(d0){try{
 function trkSave(){clearTimeout(GM.ts);GM.ts=setTimeout(()=>{try{persist()}catch(e){}},5000)}
 function gmPts(){return(E.pts||[]).filter(p=>$n(p.lat)!=null&&$n(p.lon)!=null)}
 function gmLive(){const k=TK.kf;if(k&&TK.ref&&(!trkMov()||Date.now()-k.t<45000))return trkLL(k.x,k.y);return FIX?[FIX.lat,FIX.lon]:null}
-function gmLine(){let t=(E.trk||[]).slice();const pp=gmPts();
+function gmLine(){const pp=gmPts(),o=E.odo,od=o?(o.est==='fin'?(+o.total||0):(+o.dist||0)):0,kk=(E.trk||[]).length+'|'+(E.rec||[]).length+'|'+(E.mig||[]).length+'|'+Math.round(od)+'|'+pp.length;
+ let t;if(GM._lk===kk&&GM._lt)t=GM._lt.slice();else{t=gmBase(od);GM._lk=kk;GM._lt=t.slice()}
  if(t.length<2){t=pp.slice().sort((a,b)=>(a.t||0)-(b.t||0)).map(p=>[+p.lat,+p.lon])}
  else{const ini=pp.find(p=>p.tipo==='inicio');if(ini){const d=Math.hypot((ini.lon-t[0][1])*111320*Math.cos(ini.lat*Math.PI/180),(ini.lat-t[0][0])*110540);if(d>8)t.unshift([+ini.lat,+ini.lon])}}
  // la línea siempre llega hasta donde estás, aunque el recorrido esté en pausa o sin confirmar la alerta
@@ -497,8 +514,11 @@ function gmRender(){GM.raf=0;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
   for(let i=-R2;i<R2;i+=g){c.beginPath();c.moveTo(i,-R2);c.lineTo(i,R2);c.moveTo(-R2,i);c.lineTo(R2,i);c.stroke()}c.restore()}
  // recorrido
  const L=gmLine();
- if(L.length>1){c.lineJoin='round';c.lineCap='round';c.beginPath();gmPath(c,L.map(q=>P(q[0],q[1])),W,H);
-  c.strokeStyle='rgba(0,0,0,.75)';c.lineWidth=8;c.stroke();c.strokeStyle='#ffd400';c.lineWidth=4.5;c.stroke()}
+ if(L.length>1){c.lineJoin='round';c.lineCap='round';const runs=[],gp=[];let cu=[L[0]];
+  for(let i=1;i<L.length;i++){if(geoDist(L[i-1][0],L[i-1][1],L[i][0],L[i][1])>GAPM){runs.push(cu);gp.push([L[i-1],L[i]]);cu=[L[i]]}else cu.push(L[i])}runs.push(cu);
+  c.beginPath();runs.forEach(r=>{if(r.length>1)gmPath(c,r.map(q=>P(q[0],q[1])),W,H)});
+  c.strokeStyle='rgba(0,0,0,.75)';c.lineWidth=8;c.stroke();c.strokeStyle='#ffd400';c.lineWidth=4.5;c.stroke();
+  if(gp.length){c.save();c.setLineDash([10,9]);c.lineCap='butt';gp.forEach(g=>{const a=P(g[0][0],g[0][1]),b=P(g[1][0],g[1][1]);c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.strokeStyle='rgba(0,0,0,.75)';c.lineWidth=7;c.stroke();c.strokeStyle='#ff3b30';c.lineWidth=3.5;c.stroke()});c.restore()}}
  // marcadores
  const pts=gmPts(),ord=pts.slice().sort((a,b)=>({anom:1,marca:0,pot:0,inicio:2,fin:2}[a.tipo]||0)-({anom:1,marca:0,pot:0,inicio:2,fin:2}[b.tipo]||0));
  GM.hit=[];
@@ -613,9 +633,9 @@ render=function(){const g=VIEW==='gps';document.body.classList.toggle('gpsv',g);
  try{rGps()}catch(e){console.error(e)}
  try{noAuto();ODO_AS='';odoPaint();const m=E.meta;$('sub').textContent=[m.empresa,m.proyecto].filter(Boolean).join(' · ')||'Inspección DCVG'}catch(e){}};
 const _gpsChip0=gpsChip;
-gpsChip=function(){_gpsChip0.apply(this,arguments);try{if(FIX&&FIX!==GM.lastFix){GM.lastFix=FIX;trkAdd(FIX)}gmFix()}catch(e){console.error(e)}};
+gpsChip=function(){_gpsChip0.apply(this,arguments);try{if(FIX&&FIX!==GM.lastFix){GM.lastFix=FIX;try{recAdd(FIX)}catch(e){console.error(e)}trkAdd(FIX)}gmFix()}catch(e){console.error(e)}};
 const _cancel0=cancelarInsp;
-cancelarInsp=async function(){const n=E.pts.length;await _cancel0.apply(this,arguments);if(n&&!E.pts.length){try{clearTimeout(dt);clearTimeout(tm);clearTimeout(TK.rt);try{await delBorrador()}catch(e){}odoReset();E.odo=null;E.mig=[];E.trk=[];E.rawId=null;TKR=null;TKD.pk=[];TKD.on=false;TKD.lp=0;TKD.p1=0;TKD.p2=0;TKD.last=0;TK.kf=null;TK.ref=null;TK.mv=false;TK.seg=0;TK.bad=0;GY.lp=null;GY.On=0;GY.ot=0;GY.Hp=null;GY.He=null;GM.fitted=false;D=null;EDIT=null;ADDED=[];REMOVED=[];PZ=null;INC=false;$('sheet').classList.remove('on');ODO_AS='';await flush();render()}catch(e){console.error(e)}}};
+cancelarInsp=async function(){const n=E.pts.length;await _cancel0.apply(this,arguments);if(n&&!E.pts.length){try{clearTimeout(dt);clearTimeout(tm);clearTimeout(TK.rt);try{await delBorrador()}catch(e){}odoReset();E.odo=null;E.mig=[];E.trk=[];E.rec=[];GM._lk=null;E.rawId=null;TKR=null;TKD.pk=[];TKD.on=false;TKD.lp=0;TKD.p1=0;TKD.p2=0;TKD.last=0;TK.kf=null;TK.ref=null;TK.mv=false;TK.seg=0;TK.bad=0;GY.lp=null;GY.On=0;GY.ot=0;GY.Hp=null;GY.He=null;GM.fitted=false;D=null;EDIT=null;ADDED=[];REMOVED=[];PZ=null;INC=false;$('sheet').classList.remove('on');ODO_AS='';await flush();render()}catch(e){console.error(e)}}};
 
 function ir(v){VIEW=v;document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));render();scrollTo(0,0)}
 function renderTabs(){$('tabs').innerHTML=TABS.map(t=>'<button data-v="'+t[0]+'" class="'+(VIEW===t[0]?'on':'')+'">'+ic(t[1])+t[2]+'</button>').join('')}
@@ -744,7 +764,7 @@ function shareFotos(){const F=PRE_F;if(!F){toast('Preparando las fotos… toque 
  navigator.share({files:lot}).then(()=>{FI+=15;if(FI<F.length)toast('Enviadas. Toque otra vez para las '+(F.length-FI)+' fotos restantes',4500);else FI=0}).catch(e=>{if(e&&e.name!=='AbortError')toast('El equipo bloqueó Compartir ('+((e&&e.name)||'error')+')',5000)})}
 async function accionDatos(a){
  if(a==='inst')return instalar();if(a==='hideinst'){rDat();return}
- if(a==='upd'){if(!navigator.onLine){toast('Sin internet: no se puede buscar actualización. No se cambió nada.',5500);return}if(!await dlgConfirm('Se buscará la versión más nueva y la app se recargará. Sus datos no se borran. ¿Continuar?'))return;await flush();try{const rr=await fetch(location.pathname,{cache:'no-store'});if(!rr.ok)throw 0}catch(e){toast('No hay conexión con el servidor. No se cambió nada.',5500);return}try{for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();for(const k of await caches.keys())await caches.delete(k)}catch(e){}location.reload();return}
+ if(a==='upd'){if(!navigator.onLine){toast('Sin internet: no se puede buscar actualización. No se cambió nada.',5500);return}if(!await dlgConfirm('Se buscará la versión más nueva y la app se recargará. Sus datos no se borran. ¿Continuar?'))return;await flush();let rr;try{rr=await fetch(location.pathname,{cache:'no-store'});if(!rr.ok)throw 0}catch(e){toast('No hay conexión con el servidor. No se cambió nada.',5500);return}try{const c=await caches.open(SWV);await c.put(location.pathname,rr.clone());await c.put(new URL('./',location.href).href,rr.clone());const g=await navigator.serviceWorker.getRegistration();if(g)await g.update()}catch(e){}location.reload();return}
  if(a==='fotos'){if(navigator.share)return shareFotos();toast('Este equipo no permite compartir');return}
  if(a==='sh-txt'||a==='share'){if(!E.pts.length){toast('No hay puntos para exportar');return}if(navigator.share)return shareJson(a);if(a!=='share')a='down'}
  if(a==='share'||a==='down'){if(!E.pts.length){toast('No hay puntos para exportar');return}const g=await generar();$('xi').textContent=g.nom+' · '+(g.txt.length/1048576).toFixed(2)+' MB';
@@ -930,7 +950,7 @@ function odoRelleno(f,p,q,spe){const o=E.odo,sd=PED_SD-ODO_SD0;ODO_SD0=PED_SD;
  if(!ODO_W){ODO_W={t:f.t,x:p.x,y:p.y,s:0};return}
  ODO_W.s+=sd;
  if(f.t-ODO_W.t>=6000){const w=ODO_W;ODO_W={t:f.t,x:p.x,y:p.y,s:0};const ch=Math.hypot(p.x-w.x,p.y-w.y);
-  if(ch>=3&&w.s<0.4*ch&&ch-w.s>=2.5){const add=ch-w.s;o.dist+=add;o.cum=(o.cum||0)+add;odoEv('relleno_gps',{m:r2(add)})}}}
+  if(ch>=3&&w.s<0.4*ch&&ch-w.s>=2.5&&ch/((f.t-w.t)/1000)>=0.8){const add=ch-w.s;o.dist+=add;o.cum=(o.cum||0)+add;odoEv('relleno_gps',{m:r2(add)})}}}
 // Puntos intermedios del camino (posición suavizada por el filtro) para medir curvas; se separan >= 6 m (o 1,5 × precisión)
 function odoMigaja(f,z,p){const m=E.mig||(E.mig=[]);if(m.length>=30000)return;
  const lat=f.lat+(p.y-z.y)/110540,lon=f.lon+(p.x-z.x)/(111320*Math.cos(f.lat*Math.PI/180)),
@@ -970,10 +990,11 @@ function odoAlGuardar(){const o=E.odo;
 function odoStart(d0){const f=FIX&&Date.now()-FIX.t<60000?FIX:null;
  E.mig=[];E.pts.forEach(p=>{if(p.tipo==='inicio')p.mi=0});
  E.odo={est:'act',dist:+(d0||0),cum:0,ref:f?{lat:f.lat,lon:f.lon}:null,lt:0,lx:null,ly:null,pau:null,tent:0,cand:null,ev:[],t0:new Date().toISOString()};
- ODO_KF=null;ODO_H=[];ODO_EV=null;ODO_PC=0;ODO_BAD=0;ODO_CUR=null;ODO_QL=false;ODO_SP=0;ODO_W=null;ODO_SEG=null;ODO_PS=null;ODO_NF=0;ODO_NR=0;PED_PC=0;PED_CAL=null;PED_UP=false;PED_S=0;PED_REG=0;ODO_SD0=PED_SD;odoEv('inicio',{});odoWL(true);odoTimer();odoPers(true);odoPaint()}
+ pedReset();ODO_KF=null;ODO_H=[];ODO_EV=null;ODO_PC=0;ODO_BAD=0;ODO_CUR=null;ODO_QL=false;ODO_SP=0;ODO_W=null;ODO_SEG=null;ODO_PS=null;ODO_NF=0;ODO_NR=0;PED_PC=0;PED_CAL=null;PED_UP=false;PED_S=0;PED_REG=0;ODO_SD0=PED_SD;odoEv('inicio',{});odoWL(true);odoTimer();odoPers(true);odoPaint()}
 function odoStop(){const o=E.odo;if(!o||o.est==='fin')return;if(o.est==='pos'||o.est==='act')odoAlGuardar();
  o.est='fin';o.total=r2(o.dist);o.pau=null;odoEv('fin',{total_m:o.total});odoAlerta(false);odoWL(false);odoPers(true);odoPaint()}
-function odoReset(){ODO_KF=null;ODO_H=[];ODO_EV=null;ODO_PC=0;ODO_CUR=null;ODO_SP=0;ODO_BAD=0;ODO_QL=false;ODO_W=null;ODO_SEG=null;ODO_PS=null;ODO_NF=0;ODO_NR=0;PED_PC=0;PED_CAL=null;PED_UP=false;PED_S=0;PED_REG=0;PED_N=0;odoAlerta(false);odoWL(false);if(ODO_TM){clearInterval(ODO_TM);ODO_TM=null}}
+function pedReset(){PED_UP=false;PED_S=0;PED_B=null;PED_REG=0;PED_PC=0;PED_T=0;PED_MX=0;PED_A=0.9;PED_N=0;PED_SD=0;ODO_SD0=0;ODO_SEG=null;ODO_PS=null;ODO_W=null;PED_CAL=null;ODO_NF=0;ODO_NR=0}
+function odoReset(){pedReset();ODO_KF=null;ODO_H=[];ODO_EV=null;ODO_PC=0;ODO_CUR=null;ODO_SP=0;ODO_BAD=0;ODO_QL=false;ODO_W=null;ODO_SEG=null;ODO_PS=null;ODO_NF=0;ODO_NR=0;PED_PC=0;PED_CAL=null;PED_UP=false;PED_S=0;PED_REG=0;PED_N=0;odoAlerta(false);odoWL(false);if(ODO_TM){clearInterval(ODO_TM);ODO_TM=null}}
 function odoResumen(){const o=E&&E.odo;if(!o)return null;return{estado:o.est,distancia_total_m:o.est==='fin'?o.total:r2(o.dist),inicio:o.t0,config:ODOCFG,eventos:o.ev}}
 /* ---- PODÓMETRO: cuenta pasos con el acelerómetro; mide distancias cortas mejor que el GPS ---- */
 let PED_UT=0,PED_DUR=0,PED_LAST=0,PED_SIL=0,PED_B=null,PED_S=0,PED_UP=false,PED_T=0,PED_REG=0,PED_N=0,PED_PC=0,PED_CAL=null;
@@ -987,13 +1008,15 @@ function pedMotion(e){const a=e.accelerationIncludingGravity;if(!a||a.x==null||a
  if(PED_LAST&&t-PED_LAST>10000)PED_SIL=t;const dtE=PED_LAST?t-PED_LAST:16;PED_LAST=t;
  const m=Math.sqrt(a.x*a.x+a.y*a.y+a.z*a.z);PED_B=PED_B==null?m:PED_B+0.02*(m-PED_B);
  const dv=Math.abs(m-PED_B);PED_MV+=0.02*(dv-PED_MV);PED_PK=Math.max(dv,PED_PK*Math.pow(0.94,Math.min(10,dtE/16.7)));
- if(!(odoOn()&&ODOCFG.fuente!=='gps')&&!PED_CALON)return;
+ if(!(odoOn()&&ODOCFG.fuente!=='gps')&&!PED_CALON){PED_UP=false;PED_S=0;PED_REG=0;return}
  PED_S+=0.35*((m-PED_B)-PED_S);
+ if(t-PED_MT>1500)PED_A=0.9+(PED_A-0.9)*Math.pow(0.5,dtE/10000);
+ if(t<PED_QUIET){PED_UP=false;PED_REG=0;return}
  // umbral adaptativo: se ajusta a la fuerza de TU paso (teléfono en mano, bolsillo, etc.)
  const th=Math.min(1.4,Math.max(0.35,0.45*PED_A));
  if(!PED_UP){if(PED_S>th){PED_UP=true;PED_MX=PED_S;PED_MT=t;PED_UT=t}}
- else{if(PED_S>PED_MX){PED_MX=PED_S;PED_MT=t}
-  if(PED_S<th*0.4){PED_UP=false;PED_DUR=t-PED_UT;PED_A=Math.min(6,Math.max(0.9,PED_A+0.3*(PED_MX-PED_A)));pedCand(PED_MT)}}}
+ else{if(t-PED_UT>1500){PED_UP=false;PED_REG=0;return}if(PED_S>PED_MX){PED_MX=PED_S;PED_MT=t}
+  if(PED_S<th*0.4){PED_UP=false;PED_DUR=t-PED_UT;PED_A=Math.min(4,Math.max(0.9,PED_A+0.3*(Math.min(PED_MX,2*PED_A)-PED_A)));pedCand(PED_MT)}}}
 // Un paso solo cuenta si forma una cadencia regular (4 seguidos entre 0,3 y 1,1 s): evita contar manoseo del teléfono
 function pedCand(t){const dt=t-PED_T;if(dt<300)return;PED_T=t;if(dt<=1100)PED_REG++;else PED_REG=1;
  // Contar desde el primer paso: cada paso suma al instante. Un paso aislado solo vale si su fuerza es la de un paso real (ni roce ni golpe)
@@ -1019,7 +1042,9 @@ function pedCal(p,t,acc){if(!ODOCFG.autocal||acc>12){return}
  if(d>=40&&n>=25){const l=d/n;if(l>=0.8*ODOCFG.paso&&l<=1.25*ODOCFG.paso&&l>=0.4&&l<=1.1){ODOCFG.paso=Math.round((0.85*ODOCFG.paso+0.15*l)*1000)/1000;odoCfgSave()}PED_CAL={x:p.x,y:p.y,n:PED_N,t:t}}
  else if(t-PED_CAL.t>180000)PED_CAL={x:p.x,y:p.y,n:PED_N,t:t}}
 window.addEventListener('devicemotion',pedMotion);
-document.addEventListener('click',()=>{try{if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function')DeviceMotionEvent.requestPermission().catch(()=>{})}catch(e){}},{once:true});
+function pedPermiso(){try{if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function'&&PED_PERM!=='granted'&&PED_PERM!=='pend'&&PED_PERM!=='denied'&&!pedAlive()){PED_PERM='pend';DeviceMotionEvent.requestPermission().then(r=>{PED_PERM=r},()=>{PED_PERM='denied'})}}catch(e){PED_PERM=''}}
+document.addEventListener('click',pedPermiso);
+['pointerdown','pointerup','keydown'].forEach(n=>document.addEventListener(n,()=>{PED_QUIET=Math.max(PED_QUIET,Date.now()+450)},true));
 function odoTimer(){if(ODO_TM)return;ODO_TM=setInterval(()=>{if(!odoOn()){clearInterval(ODO_TM);ODO_TM=null;return}odoPaint();odoPers()},1000)}
 async function odoWL(on){try{if(on&&ODOCFG.pantalla&&navigator.wakeLock&&!ODO_WL){ODO_WL=await navigator.wakeLock.request('screen');ODO_WL.addEventListener('release',()=>{ODO_WL=null})}else if(!on&&ODO_WL){await ODO_WL.release();ODO_WL=null}}catch(e){}}
 function odoDesbloquear(){try{ODO_AUD=ODO_AUD||new(window.AudioContext||window.webkitAudioContext)();if(ODO_AUD.state==='suspended')ODO_AUD.resume()}catch(e){}}
@@ -1055,7 +1080,7 @@ function odoPaint(){const o=E&&E.odo,v=$('odo_v');if(!v||!o)return;const est=o.e
  else if(est==='pos'){val=o.dist+o.tent;t='POSIBLE REANUDACIÓN';cls='bad';x='+'+odoFm(o.tent)+' por confirmar'}
  else{val=o.total!=null?o.total:o.dist;t='RECORRIDO FINALIZADO · TOTAL'}
  const setT=(el,tx)=>{if(el&&el.textContent!==tx)el.textContent=tx};setT(v,odoFm(val));const s=$('odo_s');if(!s)return;const cn='chip '+cls;if(s.className!==cn)s.className=cn;setT(s,t);
- if(est!=='fin'&&!x){if(pedOK())x='Contando pasos · '+String(ODOCFG.paso).replace('.',',')+' m por paso';else if(ODOCFG.fuente==='gps'&&FIX&&Date.now()-FIX.t<=15000)x='GPS ±'+FIX.acc+' m · sensibilidad '+ODOCFG.sens;else if(!FIX||Date.now()-FIX.t>15000)x='Sin sensor de pasos ni señal GPS: no acumula'}
+ if(est!=='fin'&&!x){if(pedOK())x='Contando pasos · '+String(ODOCFG.paso).replace('.',',')+' m por paso';else if(ODOCFG.fuente!=='gps'&&FIX&&Date.now()-FIX.t<=15000)x='⚠ Sin sensor de pasos'+(PED_PERM==='denied'?' (permiso de movimiento denegado)':'')+': midiendo solo con GPS, menos exacto';else if(ODOCFG.fuente==='gps'&&FIX&&Date.now()-FIX.t<=15000)x='GPS ±'+FIX.acc+' m · sensibilidad '+ODOCFG.sens;else if(!FIX||Date.now()-FIX.t>15000)x='Sin sensor de pasos ni señal GPS: no acumula'}
  setT($('odo_x'),x);
  const dg=$('odo_d');if(dg){const k=ODO_KF,vk=k?Math.hypot(k.vx,k.vy):0;dg.textContent=est==='fin'?'':'GPS: '+ODO_NF+' lecturas'+gpsHz()+(ODO_NR?' ('+ODO_NR+' descartadas)':'')+' · última hace '+(FIX?Math.round((Date.now()-FIX.t)/1000):'—')+' s · ±'+(FIX?FIX.acc:'—')+' m · vel '+vk.toFixed(1).replace('.',',')+' m/s · '+(pedAlive()?(pedStill()?'quieto':'en movimiento'):'sin acelerómetro')+(ODOCFG.fuente!=='gps'?' · pasos '+PED_N+' × '+String(ODOCFG.paso).replace('.',',')+' m':'')+' · giro '+(GY.ok&&GY.On?'activo':GY.se>0.01?'calibrando':'sin datos')}
  if(ODO_AS!==est){ODO_AS=est;const a=$('odo_a');a.innerHTML=est==='act'?'<button class="btn am" data-od="pau">'+ic('flag')+'PAUSAR RECORRIDO</button>'
@@ -1084,6 +1109,7 @@ document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||!t.datase
  ODOCFG[k]=t.type==='checkbox'?t.checked:t.tagName==='SELECT'?t.value:k==='paso'?Math.min(1.2,Math.max(0.3,$n(t.value)||ODO_DEF[k])):Math.max(1,$n(t.value)||ODO_DEF[k]);odoCfgSave();if(k==='pantalla')odoWL(odoOn())});
 let ODO_HID=0;
 document.addEventListener('visibilitychange',()=>{if(document.hidden){ODO_HID=Date.now();if(odoOn())odoPers(true)}else if(odoOn()){odoWL(true);const s=ODO_HID?Date.now()-ODO_HID:0;ODO_HID=0;
+ if(s>20000&&E.odo.est==='act'){odoEv('gps_detenido',{seg:Math.round(s/1000)});toast('El GPS estuvo detenido '+Math.round(s/1000)+' s (pantalla apagada u otra app). Ese tramo se une con línea punteada ROJA. Mantenga la pantalla encendida.',7000)}
  if(s>ODO_GAP){odoEv('reposo',{seg:Math.round(s/1000),estado:E.odo.est});if(E.odo.est==='pau')toast('El teléfono estuvo en reposo '+Math.round(s/1000)+' s: la pausa sigue activa. Al marcar el siguiente punto se recupera lo caminado.',5000)}odoPaint()}});
 function odoBoot(){document.body.insertAdjacentHTML('beforeend','<div id="alo"><div class="alb"><h2>RECORRIDO EN PAUSA</h2><p id="alo_m">¿Está realizando mediciones o continúa el recorrido?</p><button class="btn am" data-oa="cont">CONTINÚO EL RECORRIDO</button><button class="btn" data-oa="pau">LLEGUÉ AL SIGUIENTE PUNTO · PAUSAR AQUÍ</button><button class="btn" data-oa="med">SIGO MIDIENDO</button><button class="btn sm" data-od="sil" style="margin-top:12px;opacity:.8">Silenciar alerta</button></div></div>');
  if(odoOn()){odoWL(true);odoTimer();if(E.odo.est==='pos')odoAlerta(true)}odoPaint()}
@@ -1158,6 +1184,8 @@ async function procesar(f){const b=await bmp(f),w0=b.width,h0=b.height,k=Math.mi
 async function foto(e){const fs=[].slice.call(e.target.files);e.target.value='';if(!fs.length||!D)return;toast('Procesando foto…',1500);for(const f of fs){try{await procesar(f)}catch(er){toast('No se pudo leer la imagen')}}fotos();guardarBorrador();vib(15)}
 $('fCam').onchange=foto;$('fGal').onchange=foto;
 
+const SWV='dcvg-campo-v7';
+async function swCachePage(){try{if(!navigator.onLine)return;const c=await caches.open(SWV),rq=new Request(location.pathname,{cache:'reload'}),rs=await fetch(rq);if(rs&&rs.ok){await c.put(rq,rs.clone());await c.put(new URL('./',location.href).href,rs.clone())}}catch(e){}}
 /* ---------- arranque ---------- */
 (async function(){
  const ok=await DB.open();let s=null;
@@ -1167,7 +1195,7 @@ $('fCam').onchange=foto;$('fGal').onchange=foto;
  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
  E=s||{v:4,meta:defMeta(),pts:[]};E.meta=Object.assign(defMeta(),E.meta);try{if(E.rawId&&ok){const rr=await DB.get('kv','trkraw');if(rr&&rr.id===E.rawId&&Array.isArray(rr.a))TKR=rr}}catch(e){}setTimeout(()=>trkRefine(true),2500);try{window.addEventListener('online',()=>setTimeout(()=>trkRefine(true),800))}catch(e){}E.pts.forEach(p=>{p.fotos=p.fotos||[]});upAll();
  if(!ok)toast('Aviso: este navegador no permite guardar fotos en el equipo',4500);
- render();setSave('ok');if(E.pts.length){const fz=E.pts.some(p=>p.tipo==='fin');toast((fz?'Inspección finalizada recuperada · ':'Inspección en curso recuperada · ')+E.pts.length+' punto'+(E.pts.length===1?'':'s')+(fz?'. Recuerde exportarla en Datos.':''),fz?4500:3200)}if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});gpsArranque();gpsChip();odoBoot();
+ render();setSave('ok');if(E.pts.length){const fz=E.pts.some(p=>p.tipo==='fin');toast((fz?'Inspección finalizada recuperada · ':'Inspección en curso recuperada · ')+E.pts.length+' punto'+(E.pts.length===1?'':'s')+(fz?'. Recuerde exportarla en Datos.':''),fz?4500:3200)}if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{try{r.update()}catch(e){}return navigator.serviceWorker.ready}).then(()=>swCachePage()).catch(()=>{if(navigator.onLine)toast('ATENCIÓN: el modo SIN INTERNET no está activo (falta sw.js junto a la app). Avise a soporte.',9000)});gpsArranque();gpsChip();odoBoot();
  try{let dr=null;try{dr=JSON.parse(localStorage.getItem('dcvg_borrador')||'null')}catch(e){}if(!(dr&&dr.D)&&ok){try{dr=await DB.get('kv','borrador')}catch(e){}}
   if(dr&&dr.D){if(await dlgConfirm('Hay un punto sin guardar de la sesión anterior. ¿Recuperarlo?'))abrir(null,null,dr);else{for(const id of(dr.ADDED||[]))await borrarFoto(id);await delBorrador()}}}catch(e){}
 })();

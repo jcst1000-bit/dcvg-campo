@@ -1,34 +1,77 @@
-// DCVG Campo Pro - service worker
-// Objetivo: que la app SIEMPRE abra, con o sin señal, y que una respuesta mala
-// del servidor (error, portal de wifi, etc.) nunca reemplace la copia buena guardada.
-const C='dcvg-campo-v13-2026-11-01',
-F=['./','./DCVG_Campo_Pro.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-180.png'],
-CRIT=['./','./DCVG_Campo_Pro.html'], // si estos fallan, no se instala; los iconos no son críticos
-ESPERA=4000; // ms: con señal mala se abre la copia guardada en vez de quedarse esperando
+/* DCVG Campo Pro - Service Worker (modo SIN INTERNET) */
+const V='dcvg-campo-v7',TILES='dcvg-tiles-v1',MAXT=2500;
+const ROOT=new URL('./',self.registration.scope).href;
+const SHELL=['./','manifest.webmanifest','icon-180.png','icon-192.png'];
 
-self.addEventListener('install',e=>{e.waitUntil(
-  caches.open(C)
-    .then(c=>Promise.all(F.map(u=>c.add(new Request(u,{cache:'reload'})).catch(err=>{if(CRIT.includes(u))throw err}))))
-    .then(()=>self.skipWaiting()))});
+self.addEventListener('install',e=>{
+  e.waitUntil((async()=>{
+    const c=await caches.open(V);
+    await Promise.all(SHELL.map(u=>c.add(new Request(u,{cache:'reload'})).catch(()=>{})));
+    await self.skipWaiting();
+  })());
+});
 
-self.addEventListener('activate',e=>{e.waitUntil(
-  caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
+self.addEventListener('activate',e=>{
+  e.waitUntil((async()=>{
+    for(const k of await caches.keys()){if(k!==V&&k!==TILES&&k.indexOf('dcvg-campo-')===0)await caches.delete(k)}
+    await self.clients.claim();
+  })());
+});
 
-const red=r=>new Promise((ok,no)=>{
-  const t=setTimeout(()=>no(new Error('espera')),ESPERA);
-  fetch(r,{cache:'no-store'}).then(x=>{clearTimeout(t);ok(x)},x=>{clearTimeout(t);no(x)})});
+async function firstHtml(c){
+  for(const q of await c.keys()){
+    const u=new URL(q.url);
+    if(/\.html?$/i.test(u.pathname)||u.pathname.endsWith('/'))return c.match(q);
+  }
+  return null;
+}
+
+/* La app: con internet busca la versión nueva (máx. 3 s); sin internet o con señal mala abre SIEMPRE la copia guardada */
+async function nav(e){
+  const r=e.request,c=await caches.open(V);
+  const fresh=fetch(r.url,{cache:'no-store',credentials:'same-origin'}).then(async res=>{
+    if(!res||!res.ok||(res.type!=='basic'&&res.type!=='default'))throw new Error('x');
+    await c.put(r,res.clone());await c.put(ROOT,res.clone());return res;
+  });
+  e.waitUntil(fresh.catch(()=>{}));
+  try{return await Promise.race([fresh,new Promise((_,j)=>setTimeout(j,3000))])}catch(_){}
+  const hit=(await c.match(r,{ignoreSearch:true}))||(await c.match(ROOT))||(await firstHtml(c));
+  if(hit)return hit;
+  try{return await fresh}catch(_){}
+  return new Response('<meta charset="utf-8"><body style="background:#000;color:#fff;font:18px sans-serif;padding:24px"><h2>Sin conexión</h2><p>La app aún no se guardó en este equipo. Ábrala UNA vez con internet.</p>',{status:503,headers:{'Content-Type':'text/html;charset=utf-8'}});
+}
+
+/* Archivos propios (iconos, manifest): primero la copia guardada y se actualiza en segundo plano */
+async function asset(e){
+  const r=e.request,c=await caches.open(V),hit=await c.match(r,{ignoreSearch:true});
+  const net=fetch(r).then(res=>{if(res&&res.ok)c.put(r,res.clone());return res}).catch(()=>null);
+  if(hit){e.waitUntil(net);return hit}
+  return (await net)||Response.error();
+}
+
+/* Mapa: lo que ya se vio con internet queda guardado y se ve sin internet */
+async function tile(e){
+  const r=e.request,c=await caches.open(TILES),hit=await c.match(r);
+  if(hit)return hit;
+  try{
+    const res=await fetch(r);
+    if(res&&res.ok&&res.type!=='opaque'){
+      await c.put(r,res.clone());
+      e.waitUntil((async()=>{const k=await c.keys();if(k.length>MAXT)for(let i=0;i<k.length-MAXT;i++)await c.delete(k[i])})());
+    }
+    return res;
+  }catch(_){return Response.error()}
+}
 
 self.addEventListener('fetch',e=>{
-  const r=e.request;
-  if(r.method!=='GET'||new URL(r.url).origin!==location.origin)return;
-  e.respondWith((async()=>{
-    let x=null;
-    try{x=await red(r)}catch(_){}
-    // Solo se guarda una respuesta correcta del propio sitio (nunca un 404/500 ni una página ajena)
-    if(x&&x.ok&&x.type==='basic'){
-      const c=x.clone();
-      e.waitUntil(caches.open(C).then(k=>k.put(r,c)).catch(()=>{}));
-      return x}
-    // Sin señal, señal lenta o respuesta mala: se usa la copia guardada
-    const m=await caches.match(r,{ignoreSearch:true})||(r.mode==='navigate'?await caches.match('./DCVG_Campo_Pro.html'):null);
-    return m||x||Response.error()})())});
+  const r=e.request;if(r.method!=='GET')return;
+  const u=new URL(r.url);
+  if(u.origin===location.origin){
+    if(r.cache==='no-store'||r.cache==='reload')return;
+    if(u.pathname.endsWith('/sw.js'))return;
+    if(r.mode==='navigate'||r.destination==='document')e.respondWith(nav(e));
+    else e.respondWith(asset(e));
+    return;
+  }
+  if(/(^|\.)arcgisonline\.com$|(^|\.)tile\.openstreetmap\.org$/.test(u.hostname))e.respondWith(tile(e));
+});
