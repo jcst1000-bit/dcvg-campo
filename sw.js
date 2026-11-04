@@ -1,7 +1,7 @@
 // DCVG Campo Pro - service worker
 // Objetivo: que la app SIEMPRE abra, con o sin señal, y que una respuesta mala
 // del servidor (error, portal de wifi, etc.) nunca reemplace la copia buena guardada.
-const C='dcvg-campo-v14-2026-11-03',
+const C='dcvg-campo-v15-2026-11-04',
 F=['./','./DCVG_Campo_Pro.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-180.png'],
 CRIT=['./DCVG_Campo_Pro.html'], // solo la app es crítica; lo demás ('./', iconos, manifest) se intenta uno por uno y nunca bloquea la instalación
 ESPERA=4000; // ms: con señal mala se abre la copia guardada en vez de quedarse esperando
