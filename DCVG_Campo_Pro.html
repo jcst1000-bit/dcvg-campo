@@ -291,7 +291,7 @@ function up(t){const a=t.selectionStart,b=t.selectionEnd,v=t.value.toUpperCase()
 function upAll(){['empresa','proyecto','diametro','lugar_ini','lugar_fin','sector_tramo','ubicacion','sector','titulo_dcvg','titulo_log'].forEach(k=>{if(typeof E.meta[k]==='string')E.meta[k]=E.meta[k].toUpperCase()});E.pts.forEach(p=>{['desc','nota'].forEach(k=>{if(typeof p[k]==='string')p[k]=p[k].toUpperCase()})})}
 function noAuto(){document.querySelectorAll('input:not([type=checkbox]),textarea').forEach(e=>{e.setAttribute('autocomplete','off');e.setAttribute('autocorrect','off');e.setAttribute('spellcheck','false')})}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const VER='v26-2026-11-04';
+const VER='v27-2026-11-07';
 let E=null,PH={},D=null,EDIT=null,ADDED=[],REMOVED=[],stopGPS=null,VIEW='rec';
 
 /* ---------- almacenamiento local (IndexedDB) ---------- */
@@ -322,11 +322,12 @@ const MK_DEF='AAPTaEGxEA3XmvLPRoCFnuImEig..qZIH99O8sJI5mkTyHaJBJ9lnPtA2IlNpIEBZg
 const MK=()=>{try{return localStorage.getItem('dcvg_esrikey')||MK_DEF}catch(e){return MK_DEF}};
 /* GOOGLE (solo con internet): goog = satélite + nombres, calles, veredas, ríos, lugares (como Google Earth); gsat = satélite limpio; gmap = mapa de calles.
    scale=2 pide piezas de 512 px (mismo número de piezas, el doble de nitidez) en pantallas retina. Se reparte entre mt0..mt3 para cargar en paralelo. */
-function ghi(){try{const c=navigator.connection;if(c&&(c.saveData||c.downlink<1.5))return false}catch(e){}return GM.dpr>=1.5&&(GM.ms||300)<650}
-const GU=(l,z,x,y,hi)=>'https://mt'+((x+y)&3)+'.google.com/vt/lyrs='+l+'&hl=es&x='+x+'&y='+y+'&z='+z+(hi?'&scale=2':'');
-const TL={goog:{g:1,nl:1,u:(z,x,y)=>GU('y',z,x,y,ghi()),u1:(z,x,y)=>GU('y',z,x,y,0),max:20,n:'Google Earth'},
- gsat:{g:1,u:(z,x,y)=>GU('s',z,x,y,ghi()),u1:(z,x,y)=>GU('s',z,x,y,0),max:20,n:'Google Satélite'},
- gmap:{g:1,nl:1,u:(z,x,y)=>GU('m',z,x,y,ghi()),u1:(z,x,y)=>GU('m',z,x,y,0),max:20,n:'Google Mapa'},
+function gq(){try{const c=navigator.connection;if(c&&(c.saveData||c.downlink<1.5))return 1}catch(e){}const b=GM.dpr>=2.2?3:GM.dpr>=1.4?2:1,m=GM.ms||300;return m<750?b:m<1400?Math.min(b,2):1}
+function ghi(){return gq()>1}
+const GU=(l,z,x,y,q)=>'https://mt'+((x+y)&3)+'.google.com/vt/lyrs='+l+'&hl=es&x='+x+'&y='+y+'&z='+z+(q>1?'&scale='+q:'');
+const TL={goog:{g:1,nl:1,u:(z,x,y,q)=>GU('y',z,x,y,q||gq()),u1:(z,x,y)=>GU('y',z,x,y,0),max:20,n:'Google Earth'},
+ gsat:{g:1,u:(z,x,y,q)=>GU('s',z,x,y,q||gq()),u1:(z,x,y)=>GU('s',z,x,y,0),max:20,n:'Google Satélite'},
+ gmap:{g:1,nl:1,u:(z,x,y,q)=>GU('m',z,x,y,q||gq()),u1:(z,x,y)=>GU('m',z,x,y,0),max:20,n:'Google Mapa'},
  sat:{u:(z,x,y)=>MK()?'https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/'+z+'/'+y+'/'+x+'?token='+encodeURIComponent(MK()):'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'+z+'/'+y+'/'+x,max:19,n:'Satélite'},
  map:{u:(z,x,y)=>'https://tile.openstreetmap.org/'+z+'/'+x+'/'+y+'.png',max:19,n:'Calles'},s2:{u:(z,x,y)=>'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2016_3857/default/g/'+z+'/'+y+'/'+x+'.jpg',max:14,n:'Sentinel-2 (10 m)'},off:{u:null,max:22,n:'Sin mapa'}};
 /* Capas de NOMBRES (transparentes) encima del satélite/Sentinel:
@@ -559,43 +560,52 @@ async function gmDlS2(){if(!navigator.onLine){toast('Necesita internet para desc
 const TQ=[];let TA=0;
 function gmEff(){const l=TL[GM.layer];return l&&l.g&&!navigator.onLine?'sat':GM.layer}
 function gImg(u){return new Promise((ok,no)=>{const i=new Image();i.decoding='async';i.onerror=no;if(i.decode){i.src=u;i.decode().then(()=>ok(i),no)}else{i.onload=()=>ok(i);i.src=u}})}
+function tileSched(){if(!TQ.w){TQ.w=1;Promise.resolve().then(()=>{TQ.w=0;tilePump()})}}
 function tilePump(){
  while(TA<20&&TQ.length){
-  let bi=-1,bd=1e18;
+  let bt=null,bd=1e18;
   for(let i=TQ.length-1;i>=0;i--){const t=TQ[i];
-   if(t.dead){TQ.splice(i,1);continue}
-   if(GM.fr-t.f>4){TQ.splice(i,1);t.dead=true;if(GM.tiles.get(t.k)===t)GM.tiles.delete(t.k);continue}
-   const d=(t.f===GM.fr?0:1e9)+t.d;if(d<bd){bd=d;bi=i}}
-  if(bi<0)break;
-  const t=TQ.splice(bi,1)[0];TA++;
-  tileRun(t).then(()=>{TA--;tilePump()},()=>{TA--;tilePump()})}}
+   if(t.dead){TQ.splice(i,1);t.inq=0;continue}
+   if(GM.fr-t.f>4){TQ.splice(i,1);t.inq=0;if(!t.ok){t.dead=true;if(GM.tiles.get(t.k)===t)GM.tiles.delete(t.k)}continue}
+   const d=(t.f===GM.fr?0:1e9)+t.d+(t.ok?500:0);if(d<bd){bd=d;bt=t}}
+  if(!bt)break;
+  const bi=TQ.indexOf(bt);if(bi<0)continue;TQ.splice(bi,1);bt.inq=0;TA++;
+  tileRun(bt).then(()=>{TA--;tilePump()},()=>{TA--;tilePump()})}}
 async function tileRun(t){
- const Ld=TL[t.L],U=(Ld||LB[t.L]).u(t.z,t.x,t.y);let img=null;
- try{if(Ld&&Ld.g){try{const t0=performance.now();img=await gImg(U);GM.ms=(GM.ms||300)*.85+(performance.now()-t0)*.15}catch(e){try{img=await gImg(Ld.u1(t.z,t.x,t.y))}catch(e2){}}}else{const b=await tileBlob(U);
-  if(b){if(self.createImageBitmap){try{img=await createImageBitmap(b)}catch(e){}}
-   if(!img)img=await new Promise((ok,no)=>{const i=new Image(),u=URL.createObjectURL(b);i.onload=()=>{URL.revokeObjectURL(u);ok(i)};i.onerror=()=>{URL.revokeObjectURL(u);no()};i.src=u})}
-  else img=await new Promise((ok,no)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>ok(i);i.onerror=no;i.src=U})}
+ const Ld=TL[t.L],g=Ld&&Ld.g,q=g?Math.max(1,t.want||1):1,U=(Ld||LB[t.L]).u(t.z,t.x,t.y,q);let img=null,got=q;t.busy=1;
+ try{if(g){const t0=performance.now();try{img=await gImg(U);if(q>=2||gq()===1)GM.ms=(GM.ms||300)*.85+(performance.now()-t0)*.15}catch(e){GM.ms=(GM.ms||300)*.85+2500*.15;if(q>1){got=1;try{img=await gImg(Ld.u1(t.z,t.x,t.y))}catch(e2){}}}}
+  else{const b=await tileBlob(U);
+   if(b){if(self.createImageBitmap){try{img=await createImageBitmap(b)}catch(e){}}
+    if(!img)img=await new Promise((ok,no)=>{const i=new Image(),u=URL.createObjectURL(b);i.onload=()=>{URL.revokeObjectURL(u);ok(i)};i.onerror=()=>{URL.revokeObjectURL(u);no()};i.src=u})}
+   else img=await new Promise((ok,no)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>ok(i);i.onerror=no;i.src=U})}
  }catch(e){img=null}
- if(img&&!t.dead){t.img=img;t.ok=true;gmDraw()}
- else{if(img&&img.close)img.close();t.err=true;setTimeout(()=>{if(GM.tiles.get(t.k)===t)GM.tiles.delete(t.k)},navigator.onLine?(t.z>=19?30000:6000):20000)}}
-function gmTile(L,z,x,y,d){const k=L+z+'/'+x+'/'+y;let t=GM.tiles.get(k);
- if(t){t.f=GM.fr;t.d=d||0;GM.tiles.delete(k);GM.tiles.set(k,t);return t}
- t={k,L,z,x,y,img:null,ok:false,f:GM.fr,d:d||0};GM.tiles.set(k,t);TQ.push(t);if(!TQ.w){TQ.w=1;Promise.resolve().then(()=>{TQ.w=0;tilePump()})}
- if(GM.tiles.size>(ghi()?380:700)){const it=GM.tiles.keys();for(let i=0;i<120;i++){const kk=it.next().value,o=GM.tiles.get(kk);GM.tiles.delete(kk);if(o){o.dead=true;if(o.img&&o.img.close)try{o.img.close()}catch(e){}o.ok=false}}}
+ t.busy=0;
+ if(img&&!t.dead){const old=t.img;t.img=img;t.ok=true;t.q=got;if(old&&old.close)try{old.close()}catch(e){}gmDraw();
+  if(g&&(t.want||1)>t.q&&!t.inq){if(got<q)t.uf=Date.now();else{t.inq=1;TQ.push(t)}}}
+ else{if(img&&img.close)try{img.close()}catch(e){}
+  if(t.ok){t.uf=Date.now()}  /* falló la mejora: se queda la que ya hay */
+  else{t.err=true;setTimeout(()=>{if(GM.tiles.get(t.k)===t)GM.tiles.delete(t.k)},navigator.onLine?(t.z>=19?30000:6000):20000)}}}
+function gmTile(L,z,x,y,d,pre){const k=L+z+'/'+x+'/'+y;let t=GM.tiles.get(k);const Ld=TL[L],w=(Ld&&Ld.g&&!pre)?gq():1;
+ if(t){t.f=GM.fr;t.d=d||0;GM.tiles.delete(k);GM.tiles.set(k,t);
+  if(w>(t.want||1)){t.want=w;if(t.ok&&!t.busy&&!t.inq&&t.q<w&&!(t.uf&&Date.now()-t.uf<20000)){t.inq=1;TQ.push(t);tileSched()}}
+  return t}
+ t={k,L,z,x,y,img:null,ok:false,q:0,want:w,inq:1,f:GM.fr,d:d||0};GM.tiles.set(k,t);TQ.push(t);tileSched();
+ const LIM=gq()>=3?110:gq()===2?220:700;
+ if(GM.tiles.size>LIM){const it=GM.tiles.keys();for(let i=0;i<Math.ceil(LIM*.25);i++){const kk=it.next().value,o=GM.tiles.get(kk);GM.tiles.delete(kk);if(o){o.dead=true;if(o.img&&o.img.close)try{o.img.close()}catch(e){}o.ok=false}}}
  return t}
 // mientras llega la pieza nítida se muestra la que ya se tenga de otro zoom (nunca queda un hueco vacío)
 function gmBack(c,L,zi,wx,ty,px,py,s){
  for(let d=1;d<=5&&zi-d>=0;d++){const p=GM.tiles.get(L+(zi-d)+'/'+(wx>>d)+'/'+(ty>>d));
-  if(p&&p.ok&&!p.dead){const q=256/(1<<d),sx=(wx-((wx>>d)<<d))*q,sy=(ty-((ty>>d)<<d))*q;c.drawImage(p.img,sx,sy,q,q,Math.floor(px),Math.floor(py),Math.ceil(s)+1,Math.ceil(s)+1);return true}}
+  if(p&&p.ok&&!p.dead){const W0=p.img.naturalWidth||p.img.width||256,q=W0/(1<<d),sx=(wx-((wx>>d)<<d))*q,sy=(ty-((ty>>d)<<d))*q;c.drawImage(p.img,sx,sy,q,q,Math.floor(px),Math.floor(py),Math.ceil(s)+1,Math.ceil(s)+1);return true}}
  let any=false;const h=s/2;
  for(let i=0;i<4;i++){const p=GM.tiles.get(L+(zi+1)+'/'+(wx*2+(i&1))+'/'+(ty*2+(i>>1)));
-  if(p&&p.ok&&!p.dead){c.drawImage(p.img,0,0,256,256,Math.floor(px+(i&1)*h),Math.floor(py+(i>>1)*h),Math.ceil(h)+1,Math.ceil(h)+1);any=true}}
+  if(p&&p.ok&&!p.dead){const W0=p.img.naturalWidth||p.img.width||256;c.drawImage(p.img,0,0,W0,W0,Math.floor(px+(i&1)*h),Math.floor(py+(i>>1)*h),Math.ceil(h)+1,Math.ceil(h)+1);any=true}}
  return any}
 try{addEventListener('online',()=>{GM.tiles.forEach((t,k)=>{if(t.err)GM.tiles.delete(k)});gmDraw()});addEventListener('offline',()=>gmDraw())}catch(e){}
 function gmDraw(){if(!GM.on||GM.raf)return;GM.raf=requestAnimationFrame(gmRender)}
 function gmRender(){GM.raf=0;GM.fr++;const EL=gmEff();const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
- c.setTransform(GM.dpr,0,0,GM.dpr,0,0);c.fillStyle='#0b0f17';c.fillRect(0,0,W,H);
- const z=GM.z,zi=Math.min(Math.round(z),TL[EL].max),sc=Math.pow(2,z-zi),cxp=mx(GM.lon,z),cyp=my(GM.lat,z),R=GM.rot*Math.PI/180;
+ c.setTransform(GM.dpr,0,0,GM.dpr,0,0);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.fillStyle='#0b0f17';c.fillRect(0,0,W,H);
+ const z=GM.z,zi=Math.min(Math.round(z+.25),TL[EL].max),sc=Math.pow(2,z-zi),cxp=mx(GM.lon,z),cyp=my(GM.lat,z),R=GM.rot*Math.PI/180;
  const cs=Math.cos(R),sn=Math.sin(R);
  // proyección: mundo(px a z) -> pantalla
  const P=(lat,lon)=>{const dx=mx(lon,z)-cxp,dy=my(lat,z)-cyp;return[W/2+dx*cs-dy*sn,H/2+dx*sn+dy*cs]};
@@ -608,12 +618,12 @@ function gmRender(){GM.raf=0;GM.fr++;const EL=gmEff();const c=GM.cx,W=GM.w,H=GM.
    if(t.ok)c.drawImage(t.img,Math.floor(px),Math.floor(py),Math.ceil(s)+1,Math.ceil(s)+1);
    else if(!gmBack(c,EL,zi,wx,ty,px,py,s)){c.fillStyle='#141b27';c.fillRect(px,py,s,s)}}
   if(zi>0){const pn=n/2,py0=Math.max(0,y0>>1),py1=Math.min(pn-1,y1>>1),pox=ox/512,poy=oy/512;
-   for(let ty=py0;ty<=py1;ty++)for(let tx=(x0>>1);tx<=(x1>>1);tx++){const dx=tx+.5-pox,dy=ty+.5-poy;gmTile(EL,zi-1,((tx%pn)+pn)%pn,ty,1000+dx*dx+dy*dy)}}
+   for(let ty=py0;ty<=py1;ty++)for(let tx=(x0>>1);tx<=(x1>>1);tx++){const dx=tx+.5-pox,dy=ty+.5-poy;gmTile(EL,zi-1,((tx%pn)+pn)%pn,ty,1000+dx*dx+dy*dy,1)}}
   try{ // anticipar: destino del zoom animado, nivel siguiente si se está acercando, y un anillo extra cuando no hay nada pendiente
    const gp=GM.pre;if(gp&&gp.L===EL&&performance.now()<gp.until){for(const q of gp.l)gmTile(EL,gp.z,q[0],q[1],q[2])}
    if(z-zi>0.12&&zi<TL[EL].max&&TQ.length<40){const o1x=mx(GM.lon,zi+1)/256,o1y=my(GM.lat,zi+1)/256,n1=n*2;
-    for(let ty=Math.max(0,Math.floor(o1y-2));ty<=Math.min(n1-1,Math.floor(o1y+2));ty++)for(let tx=Math.floor(o1x-2);tx<=Math.floor(o1x+2);tx++){const dx=tx+.5-o1x,dy=ty+.5-o1y;gmTile(EL,zi+1,((tx%n1)+n1)%n1,ty,300+dx*dx+dy*dy)}}
-   if(TQ.length<6)for(let ty=Math.max(0,y0-1);ty<=Math.min(n-1,y1+1);ty++)for(let tx=x0-1;tx<=x1+1;tx++){if(tx>=x0&&tx<=x1&&ty>=y0&&ty<=y1)continue;const dx=tx+.5-ox/256,dy=ty+.5-oy/256;gmTile(EL,zi,((tx%n)+n)%n,ty,2000+dx*dx+dy*dy)}
+    for(let ty=Math.max(0,Math.floor(o1y-2));ty<=Math.min(n1-1,Math.floor(o1y+2));ty++)for(let tx=Math.floor(o1x-2);tx<=Math.floor(o1x+2);tx++){const dx=tx+.5-o1x,dy=ty+.5-o1y;gmTile(EL,zi+1,((tx%n1)+n1)%n1,ty,300+dx*dx+dy*dy,1)}}
+   if(TQ.length<6)for(let ty=Math.max(0,y0-1);ty<=Math.min(n-1,y1+1);ty++)for(let tx=x0-1;tx<=x1+1;tx++){if(tx>=x0&&tx<=x1&&ty>=y0&&ty<=y1)continue;const dx=tx+.5-ox/256,dy=ty+.5-oy/256;gmTile(EL,zi,((tx%n)+n)%n,ty,2000+dx*dx+dy*dy,1)}
   }catch(e){}
   c.restore();
   if(!TL[EL].nl&&EL!=='map'){ // nombres encima (el mapa Calles ya los trae)
@@ -626,7 +636,7 @@ function gmRender(){GM.raf=0;GM.fr++;const EL=gmEff();const c=GM.cx,W=GM.w,H=GM.
   c.strokeStyle='rgba(255,255,255,.07)';c.lineWidth=1;c.save();c.translate(W/2,H/2);c.rotate(R);const g=50,R2=Math.hypot(W,H);
   for(let i=-R2;i<R2;i+=g){c.beginPath();c.moveTo(i,-R2);c.lineTo(i,R2);c.moveTo(-R2,i);c.lineTo(R2,i);c.stroke()}c.restore()}
  if(EL!=='off'&&!navigator.onLine){c.save();c.font='600 11px system-ui,sans-serif';c.textAlign='center';const tx='Sin internet · se muestra el mapa guardado (el recorrido sigue midiéndose)',tw=c.measureText(tx).width+16;c.fillStyle='rgba(0,0,0,.6)';c.fillRect(W/2-tw/2,8,tw,20);c.fillStyle='#fff';c.fillText(tx,W/2,22);c.restore()}
- if(EL!=='off'){let A={goog:'Imágenes y mapa © Google',gsat:'Imágenes © Google',gmap:'Mapa © Google',sat:'Esri, Maxar, Earthstar Geographics y la comunidad GIS',map:'© OpenStreetMap contributors',s2:'EOxCloudless - cloudless.eox.at (Contains modified Copernicus Sentinel data 2016)'}[EL];if(A&&!TL[EL].nl&&EL!=='map'&&GM.lab==='osm')A+=' · Nombres © CARTO, © OpenStreetMap';else if(A&&!TL[EL].nl&&EL!=='map'&&GM.lab==='esri')A+=' · Nombres: Esri';if(A){c.save();c.font='10px system-ui,sans-serif';c.textAlign='right';const tw=c.measureText(A).width+10;c.fillStyle='rgba(0,0,0,.55)';c.fillRect(W-tw-4,H-18,tw,14);c.fillStyle='#fff';c.fillText(A,W-9,H-8);c.restore()}}
+ if(EL!=='off'){let A={goog:'Imágenes y mapa © Google',gsat:'Imágenes © Google',gmap:'Mapa © Google',sat:'Esri, Maxar, Earthstar Geographics y la comunidad GIS',map:'© OpenStreetMap contributors',s2:'EOxCloudless - cloudless.eox.at (Contains modified Copernicus Sentinel data 2016)'}[EL];if(A&&!TL[EL].nl&&EL!=='map'&&GM.lab==='osm')A+=' · Nombres © CARTO, © OpenStreetMap';else if(A&&!TL[EL].nl&&EL!=='map'&&GM.lab==='esri')A+=' · Nombres: Esri';if(A&&TL[EL].g)A+=' · ×'+gq()+' · '+VER;if(A){c.save();c.font='10px system-ui,sans-serif';c.textAlign='right';const tw=c.measureText(A).width+10;c.fillStyle='rgba(0,0,0,.55)';c.fillRect(W-tw-4,H-18,tw,14);c.fillStyle='#fff';c.fillText(A,W-9,H-8);c.restore()}}
  // recorrido
  const L=gmLine();
  if(L.length>1){c.lineJoin='round';c.lineCap='round';const runs=[],gp=[];let cu=[L[0]];
@@ -696,7 +706,7 @@ function gmCompass(){const c=GM.cx,x=GM.w-46,y=64,R=GM.rot*Math.PI/180;c.save();
  c.rotate(R);c.font='800 12px system-ui';c.textAlign='center';c.textBaseline='middle';
  [['N',0,-21,'#ff5470'],['E',21,0,'#fff'],['S',0,21,'#fff'],['O',-21,0,'#fff']].forEach(a=>{c.fillStyle=a[3];c.fillText(a[0],a[1],a[2])});
  c.beginPath();c.moveTo(0,-14);c.lineTo(4,0);c.lineTo(-4,0);c.closePath();c.fillStyle='#ff5470';c.fill();c.beginPath();c.moveTo(0,14);c.lineTo(4,0);c.lineTo(-4,0);c.closePath();c.fillStyle='#ddd';c.fill();c.restore()}
-function gmSize(){const b=$('gmw');if(!b)return;const r=b.getBoundingClientRect();GM.dpr=Math.min(devicePixelRatio||1,2.5);GM.w=r.width;GM.h=r.height;GM.cv.width=r.width*GM.dpr;GM.cv.height=r.height*GM.dpr;gmDraw()}
+function gmSize(){const b=$('gmw');if(!b)return;const r=b.getBoundingClientRect();GM.dpr=Math.min(devicePixelRatio||1,3);GM.w=r.width;GM.h=r.height;GM.cv.width=r.width*GM.dpr;GM.cv.height=r.height*GM.dpr;gmDraw()}
 function gmFit(){const L=gmLine().concat(gmPts().map(p=>[+p.lat,+p.lon]));if(FIX)L.push([FIX.lat,FIX.lon]);if(!L.length){if(FIX){GM.lat=FIX.lat;GM.lon=FIX.lon;GM.z=18}return}
  let a=90,b=-90,c=180,d=-180;L.forEach(q=>{a=Math.min(a,q[0]);b=Math.max(b,q[0]);c=Math.min(c,q[1]);d=Math.max(d,q[1])});
  GM.lat=(a+b)/2;GM.lon=(c+d)/2;let z=19;while(z>3&&(Math.abs(mx(d,z)-mx(c,z))>GM.w*.8||Math.abs(my(a,z)-my(b,z))>GM.h*.8))z--;GM.z=Math.min(z,19);GM.follow=false;gmUi()}
@@ -707,7 +717,7 @@ function gmZoomAt(px,py,nz){nz=Math.max(2,Math.min(22,nz));const R=GM.rot*Math.P
  const ncx=(mx(GM.lon,GM.z)+wx)*k-wx,ncy=(my(GM.lat,GM.z)+wy)*k-wy;GM.z=nz;
  GM.lon=ncx/(256*Math.pow(2,nz))*360-180;const n=Math.PI-2*Math.PI*ncy/(256*Math.pow(2,nz));GM.lat=180/Math.PI*Math.atan(Math.sinh(n))}
 function gmPre(px,py,nz){const L=gmEff();if(!TL[L]||!TL[L].u)return;const a=GM.lat,b=GM.lon,c=GM.z;gmZoomAt(px,py,nz);const lat=GM.lat,lon=GM.lon,zt=GM.z;GM.lat=a;GM.lon=b;GM.z=c;
- const zi=Math.min(Math.round(zt),TL[L].max),n=Math.pow(2,zi),ox=mx(lon,zi)/256,oy=my(lat,zi)/256,r=Math.hypot(GM.w,GM.h)/2/256*Math.pow(2,zt-zi)+1,l=[];
+ const zi=Math.min(Math.round(zt+.25),TL[L].max),n=Math.pow(2,zi),ox=mx(lon,zi)/256,oy=my(lat,zi)/256,r=Math.hypot(GM.w,GM.h)/2/256*Math.pow(2,zt-zi)+1,l=[];
  for(let ty=Math.max(0,Math.floor(oy-r));ty<=Math.min(n-1,Math.floor(oy+r));ty++)for(let tx=Math.floor(ox-r);tx<=Math.floor(ox+r);tx++){const dx=tx+.5-ox,dy=ty+.5-oy;l.push([((tx%n)+n)%n,ty,dx*dx+dy*dy])}
  GM.pre={L,z:zi,l,until:performance.now()+1200}}
 function gmZoomAnim(px,py,nz,ms){nz=Math.max(2,Math.min(22,nz));if(nz===GM.z)return;try{gmPre(px,py,nz)}catch(e){}
