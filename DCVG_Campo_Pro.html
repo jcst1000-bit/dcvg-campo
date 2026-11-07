@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es"><head><meta charset="utf-8">
+<html lang="es"><head><meta charset="utf-8"><link rel="preconnect" href="https://server.arcgisonline.com" crossorigin><link rel="preconnect" href="https://ibasemaps-api.arcgis.com" crossorigin><link rel="preconnect" href="https://basemaps.cartocdn.com" crossorigin><link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <meta name="mobile-web-app-capable" content="yes">
@@ -317,7 +317,7 @@ const vib=n=>{try{PED_QUIET=Math.max(PED_QUIET,Date.now()+(n||12)+400);navigator
 /* ---------- navegación ---------- */
 const TABS=[['rec','list','Recorrido'],['cab','sl','Info General'],['pla','tbl','Planilla'],['res','res','Resultados'],['dat','db','Datos']];
 /* ===== GPS MAP (canvas propio: rotación/zoom instantáneos) ===== */
-const GM={on:false,cv:null,cx:null,w:0,h:0,dpr:1,lat:4.6,lon:-74.07,z:17,rot:0,follow:true,layer:'sat',tiles:new Map(),lab:'osm',raf:0,ptr:new Map(),g0:null,fitted:false,sel:null};
+const GM={on:false,cv:null,cx:null,w:0,h:0,dpr:1,lat:4.6,lon:-74.07,z:17,rot:0,follow:true,layer:'sat',tiles:new Map(),lab:'osm',fr:0,raf:0,ptr:new Map(),g0:null,fitted:false,sel:null};
 const MK_DEF='AAPTaEGxEA3XmvLPRoCFnuImEig..qZIH99O8sJI5mkTyHaJBJ9lnPtA2IlNpIEBZg9OMF9kbV1afe0i23dzjEPriD6Bv4gR1AdCEVygk4o4lNmT2ql6tN-VuaWTbLbKipE0zcv6y6pwBIxZJVSsQPeyRxBu_NzKS5HGJZmuWjq8VSv-l2FVyGv3Y0drpgGTUwhBvReg3pMh1g1e9or2oAYhsT5neINUGBYo_JFHzEuxTTRnaHwUqRTlOFUBZ0WU2Viqgw8uaaUp6MKxAyQ..AT1_k8mXbsWA';/* PEGUE AQUÍ UNA SOLA VEZ su llave de ArcGIS Location Platform entre las comillas: así todos los celulares la usan sin escribirla */
 const MK=()=>{try{return localStorage.getItem('dcvg_esrikey')||MK_DEF}catch(e){return MK_DEF}};
 const TL={sat:{u:(z,x,y)=>MK()?'https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/'+z+'/'+y+'/'+x+'?token='+encodeURIComponent(MK()):'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'+z+'/'+y+'/'+x,max:19,n:'Satélite'},
@@ -326,7 +326,7 @@ const TL={sat:{u:(z,x,y)=>MK()?'https://ibasemaps-api.arcgis.com/arcgis/rest/ser
    osm  = CARTO/OpenStreetMap: calles, carreras, veredas, barrios, caseríos, municipios
    esri = Esri: vías con su nombre + lugares, límites y municipios */
 const LB={
- lo:{u:(z,x,y)=>'https://basemaps.cartocdn.com/dark_only_labels/'+z+'/'+x+'/'+y+'.png',max:20},
+ lo:{u:(z,x,y)=>'https://basemaps.cartocdn.com/dark_only_labels/'+z+'/'+x+'/'+y+(GM.dpr>=1.5?'@2x':'')+'.png',max:20},
  et:{u:(z,x,y)=>'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/'+z+'/'+y+'/'+x,max:19},
  ep:{u:(z,x,y)=>'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/'+z+'/'+y+'/'+x,max:19}};
 const LBS={osm:['lo'],esri:['et','ep'],off:[]},LBN={osm:'Nombres: OSM',esri:'Nombres: Esri',off:'Sin nombres'};
@@ -528,7 +528,10 @@ function gmLine(){const pp=gmPts(),o=E.odo,od=o?(o.est==='fin'?(+o.total||0):(+o
  else if(lv&&!t.length&&FIX)t=[];
  return t}
 const TCN='dcvg-tiles-v1';
-async function tileGet(u,solo){try{const k=u.split('?')[0],c=await caches.open(TCN);let r=await c.match(k);if(!r){if(!navigator.onLine)return null;r=await fetch(u,{mode:'cors'});if(!r.ok)return null;await c.put(k,r.clone())}return solo?true:URL.createObjectURL(await r.blob())}catch(e){return null}}
+const TCP=(()=>{try{return caches.open(TCN)}catch(e){return Promise.resolve(null)}})();
+async function tileGet(u,solo){try{const k=u.split('?')[0],c=await TCP;if(!c)return null;let r=await c.match(k);if(!r){if(!navigator.onLine)return null;r=await fetch(u,{mode:'cors'});if(!r.ok)return null;await c.put(k,r.clone())}return solo?true:URL.createObjectURL(await r.blob())}catch(e){return null}}
+// pieza como imagen: se muestra apenas llega; guardarla en la caché ocurre aparte, sin hacer esperar
+async function tileBlob(u){try{const k=u.split('?')[0],c=await TCP;if(c){const r=await c.match(k);if(r)return await r.blob()}if(!navigator.onLine)return null;const r=await fetch(u,{mode:'cors'});if(!r.ok)return null;if(c)c.put(k,r.clone()).catch(()=>{});return await r.blob()}catch(e){return null}}
 async function gmKey(){const v=await dlgOpen({title:'Llave de Esri (ArcGIS Location Platform)',msg:'Pegue aquí su llave para el satélite con licencia. Vacío = sin llave.',input:true,value:MK(),ok:'Guardar'});if(v==null)return;try{localStorage.setItem('dcvg_esrikey',v.trim())}catch(e){}GM.tiles.clear();toast(v.trim()?'Llave guardada':'Llave borrada',2500);gmDraw()}
 async function gmDlS2(){if(!navigator.onLine){toast('Necesita internet para descargar el mapa base',4000);return}
  if(!FIX){toast('Espere a que el GPS marque su ubicaci\u00f3n: la descarga se hace del departamento donde est\u00e1',5500);return}
@@ -545,13 +548,43 @@ async function gmDlS2(){if(!navigator.onLine){toast('Necesita internet para desc
  const nb=tl.length;for(const lk of LBS[GM.lab]||[])for(let i=0;i<nb;i++)tl.push([tl[i][0],tl[i][1],tl[i][2],lk]);
  if(!await dlgConfirm('Se guardar\u00e1 el mapa base Sentinel-2 de '+nom+' ('+tl.length+' piezas, con nombres de calles y lugares, unos '+Math.round(tl.length*0.02)+' MB)'+(zm<12?'. Por ser una zona muy grande se guarda con menos detalle':'')+' para verlo sin internet. Conviene hacerlo con Wi-Fi. \u00bfContinuar?'))return;
  let i=0,ok=0;const w=async()=>{while(i<tl.length){const t=tl[i++];if(await tileGet((t[3]?LB[t[3]]:TL.s2).u(t[0],t[1],t[2]),true))ok++;if(i%100===0)toast('Descargando mapa base… '+Math.round(i/tl.length*100)+'%',1500)}};
- await Promise.all([w(),w()]);toast('Listo: '+ok+' de '+tl.length+' piezas guardadas',6000)}
-function gmTile(L,z,x,y){const k=L+z+'/'+x+'/'+y;let t=GM.tiles.get(k);if(t)return t;
- t={img:new Image(),ok:false};t.img.crossOrigin='anonymous';t.img.onload=()=>{t.ok=true;if(/^blob:/.test(t.img.src))URL.revokeObjectURL(t.img.src);gmDraw()};t.img.onerror=()=>{t.err=true;setTimeout(()=>{if(GM.tiles.get(k)===t)GM.tiles.delete(k)},navigator.onLine?6000:20000)};{const U=(TL[L]||LB[L]).u(z,x,y);tileGet(U).then(b=>{t.img.src=b||U})}
- GM.tiles.set(k,t);if(GM.tiles.size>1200){const it=GM.tiles.keys();for(let i=0;i<300;i++)GM.tiles.delete(it.next().value)}return t}
+ await Promise.all([w(),w(),w(),w(),w(),w()]);toast('Listo: '+ok+' de '+tl.length+' piezas guardadas',6000)}
+const TQ=[];let TA=0;
+function tilePump(){
+ while(TA<12&&TQ.length){
+  let bi=-1,bd=1e18;
+  for(let i=TQ.length-1;i>=0;i--){const t=TQ[i];
+   if(t.dead){TQ.splice(i,1);continue}
+   if(GM.fr-t.f>4){TQ.splice(i,1);t.dead=true;if(GM.tiles.get(t.k)===t)GM.tiles.delete(t.k);continue}
+   const d=(t.f===GM.fr?0:1e9)+t.d;if(d<bd){bd=d;bi=i}}
+  if(bi<0)break;
+  const t=TQ.splice(bi,1)[0];TA++;
+  tileRun(t).then(()=>{TA--;tilePump()},()=>{TA--;tilePump()})}}
+async function tileRun(t){
+ const U=(TL[t.L]||LB[t.L]).u(t.z,t.x,t.y);let img=null;
+ try{const b=await tileBlob(U);
+  if(b){if(self.createImageBitmap){try{img=await createImageBitmap(b)}catch(e){}}
+   if(!img)img=await new Promise((ok,no)=>{const i=new Image(),u=URL.createObjectURL(b);i.onload=()=>{URL.revokeObjectURL(u);ok(i)};i.onerror=()=>{URL.revokeObjectURL(u);no()};i.src=u})}
+  else img=await new Promise((ok,no)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>ok(i);i.onerror=no;i.src=U})
+ }catch(e){img=null}
+ if(img&&!t.dead){t.img=img;t.ok=true;gmDraw()}
+ else{if(img&&img.close)img.close();t.err=true;setTimeout(()=>{if(GM.tiles.get(t.k)===t)GM.tiles.delete(t.k)},navigator.onLine?6000:20000)}}
+function gmTile(L,z,x,y,d){const k=L+z+'/'+x+'/'+y;let t=GM.tiles.get(k);
+ if(t){t.f=GM.fr;t.d=d||0;GM.tiles.delete(k);GM.tiles.set(k,t);return t}
+ t={k,L,z,x,y,img:null,ok:false,f:GM.fr,d:d||0};GM.tiles.set(k,t);TQ.push(t);if(!TQ.w){TQ.w=1;Promise.resolve().then(()=>{TQ.w=0;tilePump()})}
+ if(GM.tiles.size>700){const it=GM.tiles.keys();for(let i=0;i<200;i++){const kk=it.next().value,o=GM.tiles.get(kk);GM.tiles.delete(kk);if(o){o.dead=true;if(o.img&&o.img.close)try{o.img.close()}catch(e){}o.ok=false}}}
+ return t}
+// mientras llega la pieza nítida se muestra la que ya se tenga de otro zoom (nunca queda un hueco vacío)
+function gmBack(c,L,zi,wx,ty,px,py,s){
+ for(let d=1;d<=5&&zi-d>=0;d++){const p=GM.tiles.get(L+(zi-d)+'/'+(wx>>d)+'/'+(ty>>d));
+  if(p&&p.ok&&!p.dead){const q=256/(1<<d),sx=(wx-((wx>>d)<<d))*q,sy=(ty-((ty>>d)<<d))*q;c.drawImage(p.img,sx,sy,q,q,Math.floor(px),Math.floor(py),Math.ceil(s)+1,Math.ceil(s)+1);return true}}
+ let any=false;const h=s/2;
+ for(let i=0;i<4;i++){const p=GM.tiles.get(L+(zi+1)+'/'+(wx*2+(i&1))+'/'+(ty*2+(i>>1)));
+  if(p&&p.ok&&!p.dead){c.drawImage(p.img,0,0,256,256,Math.floor(px+(i&1)*h),Math.floor(py+(i>>1)*h),Math.ceil(h)+1,Math.ceil(h)+1);any=true}}
+ return any}
 try{addEventListener('online',()=>{GM.tiles.forEach((t,k)=>{if(t.err)GM.tiles.delete(k)});gmDraw()})}catch(e){}
 function gmDraw(){if(!GM.on||GM.raf)return;GM.raf=requestAnimationFrame(gmRender)}
-function gmRender(){GM.raf=0;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
+function gmRender(){GM.raf=0;GM.fr++;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
  c.setTransform(GM.dpr,0,0,GM.dpr,0,0);c.fillStyle='#0b0f17';c.fillRect(0,0,W,H);
  const z=GM.z,zi=Math.min(Math.round(z),TL[GM.layer].max),sc=Math.pow(2,z-zi),cxp=mx(GM.lon,z),cyp=my(GM.lat,z),R=GM.rot*Math.PI/180;
  const cs=Math.cos(R),sn=Math.sin(R);
@@ -561,22 +594,22 @@ function gmRender(){GM.raf=0;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
  if(GM.layer!=='off'){const s=256*sc,ox=mx(GM.lon,zi),oy=my(GM.lat,zi),r=Math.hypot(W,H)/2/s+1,n=Math.pow(2,zi);
   const x0=Math.floor(ox/256-r),x1=Math.floor(ox/256+r),y0=Math.max(0,Math.floor(oy/256-r)),y1=Math.min(n-1,Math.floor(oy/256+r));
   c.save();c.translate(W/2,H/2);c.rotate(R);
-  for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++){const wx=((tx%n)+n)%n,t=gmTile(GM.layer,zi,wx,ty);
+  for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++){const wx=((tx%n)+n)%n,dx=tx+.5-ox/256,dy=ty+.5-oy/256,t=gmTile(GM.layer,zi,wx,ty,dx*dx+dy*dy);
    const px=(tx*256-ox)*sc,py=(ty*256-oy)*sc;
    if(t.ok)c.drawImage(t.img,Math.floor(px),Math.floor(py),Math.ceil(s)+1,Math.ceil(s)+1);
-   else{c.fillStyle='#141b27';c.fillRect(px,py,s,s)}}
+   else if(!gmBack(c,GM.layer,zi,wx,ty,px,py,s)){c.fillStyle='#141b27';c.fillRect(px,py,s,s)}}
   c.restore();
   if(GM.layer!=='map'){ // nombres encima (el mapa Calles ya los trae)
    for(const lk of LBS[GM.lab]||[]){const zl=Math.min(Math.round(z),LB[lk].max),sl=Math.pow(2,z-zl),sz=256*sl,nl=Math.pow(2,zl),ox2=mx(GM.lon,zl),oy2=my(GM.lat,zl),r2=Math.hypot(W,H)/2/sz+1;
     const a0=Math.floor(ox2/256-r2),a1=Math.floor(ox2/256+r2),b0=Math.max(0,Math.floor(oy2/256-r2)),b1=Math.min(nl-1,Math.floor(oy2/256+r2));
     c.save();c.translate(W/2,H/2);c.rotate(R);
-    for(let ty=b0;ty<=b1;ty++)for(let tx=a0;tx<=a1;tx++){const t=gmTile(lk,zl,((tx%nl)+nl)%nl,ty);if(t.ok)c.drawImage(t.img,Math.floor((tx*256-ox2)*sl),Math.floor((ty*256-oy2)*sl),Math.ceil(sz)+1,Math.ceil(sz)+1)}
+    for(let ty=b0;ty<=b1;ty++)for(let tx=a0;tx<=a1;tx++){const dx=tx+.5-ox2/256,dy=ty+.5-oy2/256,t=gmTile(lk,zl,((tx%nl)+nl)%nl,ty,dx*dx+dy*dy+4);if(t.ok)c.drawImage(t.img,Math.floor((tx*256-ox2)*sl),Math.floor((ty*256-oy2)*sl),Math.ceil(sz)+1,Math.ceil(sz)+1)}
     c.restore()}}
  }else{ // cuadrícula sin mapa
   c.strokeStyle='rgba(255,255,255,.07)';c.lineWidth=1;c.save();c.translate(W/2,H/2);c.rotate(R);const g=50,R2=Math.hypot(W,H);
   for(let i=-R2;i<R2;i+=g){c.beginPath();c.moveTo(i,-R2);c.lineTo(i,R2);c.moveTo(-R2,i);c.lineTo(R2,i);c.stroke()}c.restore()}
  if(GM.layer!=='off'&&!navigator.onLine){c.save();c.font='600 11px system-ui,sans-serif';c.textAlign='center';const tx='Sin internet · se muestra el mapa guardado (el recorrido sigue midiéndose)',tw=c.measureText(tx).width+16;c.fillStyle='rgba(0,0,0,.6)';c.fillRect(W/2-tw/2,8,tw,20);c.fillStyle='#fff';c.fillText(tx,W/2,22);c.restore()}
- if(GM.layer!=='off'){const A={sat:'Esri, Maxar, Earthstar Geographics y la comunidad GIS',map:'© OpenStreetMap contributors',s2:'EOxCloudless - cloudless.eox.at (Contains modified Copernicus Sentinel data 2016)'}[GM.layer];if(A&&GM.layer!=='map'&&GM.lab==='osm')A+=' · Nombres © CARTO, © OpenStreetMap';else if(A&&GM.layer!=='map'&&GM.lab==='esri')A+=' · Nombres: Esri';if(A){c.save();c.font='10px system-ui,sans-serif';c.textAlign='right';const tw=c.measureText(A).width+10;c.fillStyle='rgba(0,0,0,.55)';c.fillRect(W-tw-4,H-18,tw,14);c.fillStyle='#fff';c.fillText(A,W-9,H-8);c.restore()}}
+ if(GM.layer!=='off'){let A={sat:'Esri, Maxar, Earthstar Geographics y la comunidad GIS',map:'© OpenStreetMap contributors',s2:'EOxCloudless - cloudless.eox.at (Contains modified Copernicus Sentinel data 2016)'}[GM.layer];if(A&&GM.layer!=='map'&&GM.lab==='osm')A+=' · Nombres © CARTO, © OpenStreetMap';else if(A&&GM.layer!=='map'&&GM.lab==='esri')A+=' · Nombres: Esri';if(A){c.save();c.font='10px system-ui,sans-serif';c.textAlign='right';const tw=c.measureText(A).width+10;c.fillStyle='rgba(0,0,0,.55)';c.fillRect(W-tw-4,H-18,tw,14);c.fillStyle='#fff';c.fillText(A,W-9,H-8);c.restore()}}
  // recorrido
  const L=gmLine();
  if(L.length>1){c.lineJoin='round';c.lineCap='round';const runs=[],gp=[];let cu=[L[0]];
