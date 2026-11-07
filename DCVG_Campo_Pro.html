@@ -317,10 +317,16 @@ const vib=n=>{try{PED_QUIET=Math.max(PED_QUIET,Date.now()+(n||12)+400);navigator
 /* ---------- navegación ---------- */
 const TABS=[['rec','list','Recorrido'],['cab','sl','Info General'],['pla','tbl','Planilla'],['res','res','Resultados'],['dat','db','Datos']];
 /* ===== GPS MAP (canvas propio: rotación/zoom instantáneos) ===== */
-const GM={on:false,cv:null,cx:null,w:0,h:0,dpr:1,lat:4.6,lon:-74.07,z:17,rot:0,follow:true,layer:'sat',tiles:new Map(),lab:'osm',fr:0,raf:0,ptr:new Map(),g0:null,fitted:false,sel:null};
+const GM={on:false,cv:null,cx:null,w:0,h:0,dpr:1,lat:4.6,lon:-74.07,z:17,rot:0,follow:true,layer:'goog',tiles:new Map(),lab:'osm',fr:0,raf:0,ptr:new Map(),g0:null,fitted:false,sel:null};
 const MK_DEF='AAPTaEGxEA3XmvLPRoCFnuImEig..qZIH99O8sJI5mkTyHaJBJ9lnPtA2IlNpIEBZg9OMF9kbV1afe0i23dzjEPriD6Bv4gR1AdCEVygk4o4lNmT2ql6tN-VuaWTbLbKipE0zcv6y6pwBIxZJVSsQPeyRxBu_NzKS5HGJZmuWjq8VSv-l2FVyGv3Y0drpgGTUwhBvReg3pMh1g1e9or2oAYhsT5neINUGBYo_JFHzEuxTTRnaHwUqRTlOFUBZ0WU2Viqgw8uaaUp6MKxAyQ..AT1_k8mXbsWA';/* PEGUE AQUÍ UNA SOLA VEZ su llave de ArcGIS Location Platform entre las comillas: así todos los celulares la usan sin escribirla */
 const MK=()=>{try{return localStorage.getItem('dcvg_esrikey')||MK_DEF}catch(e){return MK_DEF}};
-const TL={sat:{u:(z,x,y)=>MK()?'https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/'+z+'/'+y+'/'+x+'?token='+encodeURIComponent(MK()):'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'+z+'/'+y+'/'+x,max:19,n:'Satélite'},
+/* GOOGLE (solo con internet): goog = satélite + nombres, calles, veredas, ríos, lugares (como Google Earth); gsat = satélite limpio; gmap = mapa de calles.
+   scale=2 pide piezas de 512 px (mismo número de piezas, el doble de nitidez) en pantallas retina. Se reparte entre mt0..mt3 para cargar en paralelo. */
+const GU=(l,z,x,y,hi)=>'https://mt'+((x+y)&3)+'.google.com/vt/lyrs='+l+'&hl=es&x='+x+'&y='+y+'&z='+z+(hi?'&scale=2':'');
+const TL={goog:{g:1,nl:1,u:(z,x,y)=>GU('y',z,x,y,GM.dpr>=1.5),u1:(z,x,y)=>GU('y',z,x,y,0),max:20,n:'Google Earth'},
+ gsat:{g:1,u:(z,x,y)=>GU('s',z,x,y,GM.dpr>=1.5),u1:(z,x,y)=>GU('s',z,x,y,0),max:20,n:'Google Satélite'},
+ gmap:{g:1,nl:1,u:(z,x,y)=>GU('m',z,x,y,GM.dpr>=1.5),u1:(z,x,y)=>GU('m',z,x,y,0),max:20,n:'Google Mapa'},
+ sat:{u:(z,x,y)=>MK()?'https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/'+z+'/'+y+'/'+x+'?token='+encodeURIComponent(MK()):'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'+z+'/'+y+'/'+x,max:19,n:'Satélite'},
  map:{u:(z,x,y)=>'https://tile.openstreetmap.org/'+z+'/'+x+'/'+y+'.png',max:19,n:'Calles'},s2:{u:(z,x,y)=>'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2016_3857/default/g/'+z+'/'+y+'/'+x+'.jpg',max:14,n:'Sentinel-2 (10 m)'},off:{u:null,max:22,n:'Sin mapa'}};
 /* Capas de NOMBRES (transparentes) encima del satélite/Sentinel:
    osm  = CARTO/OpenStreetMap: calles, carreras, veredas, barrios, caseríos, municipios
@@ -550,8 +556,10 @@ async function gmDlS2(){if(!navigator.onLine){toast('Necesita internet para desc
  let i=0,ok=0;const w=async()=>{while(i<tl.length){const t=tl[i++];if(await tileGet((t[3]?LB[t[3]]:TL.s2).u(t[0],t[1],t[2]),true))ok++;if(i%100===0)toast('Descargando mapa base… '+Math.round(i/tl.length*100)+'%',1500)}};
  await Promise.all([w(),w(),w(),w(),w(),w()]);toast('Listo: '+ok+' de '+tl.length+' piezas guardadas',6000)}
 const TQ=[];let TA=0;
+function gmEff(){const l=TL[GM.layer];return l&&l.g&&!navigator.onLine?'sat':GM.layer}
+function gImg(u){return new Promise((ok,no)=>{const i=new Image();i.decoding='async';i.onerror=no;if(i.decode){i.src=u;i.decode().then(()=>ok(i),no)}else{i.onload=()=>ok(i);i.src=u}})}
 function tilePump(){
- while(TA<12&&TQ.length){
+ while(TA<16&&TQ.length){
   let bi=-1,bd=1e18;
   for(let i=TQ.length-1;i>=0;i--){const t=TQ[i];
    if(t.dead){TQ.splice(i,1);continue}
@@ -561,14 +569,14 @@ function tilePump(){
   const t=TQ.splice(bi,1)[0];TA++;
   tileRun(t).then(()=>{TA--;tilePump()},()=>{TA--;tilePump()})}}
 async function tileRun(t){
- const U=(TL[t.L]||LB[t.L]).u(t.z,t.x,t.y);let img=null;
- try{const b=await tileBlob(U);
+ const Ld=TL[t.L],U=(Ld||LB[t.L]).u(t.z,t.x,t.y);let img=null;
+ try{if(Ld&&Ld.g){try{img=await gImg(U)}catch(e){try{img=await gImg(Ld.u1(t.z,t.x,t.y))}catch(e2){}}}else{const b=await tileBlob(U);
   if(b){if(self.createImageBitmap){try{img=await createImageBitmap(b)}catch(e){}}
    if(!img)img=await new Promise((ok,no)=>{const i=new Image(),u=URL.createObjectURL(b);i.onload=()=>{URL.revokeObjectURL(u);ok(i)};i.onerror=()=>{URL.revokeObjectURL(u);no()};i.src=u})}
-  else img=await new Promise((ok,no)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>ok(i);i.onerror=no;i.src=U})
+  else img=await new Promise((ok,no)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>ok(i);i.onerror=no;i.src=U})}
  }catch(e){img=null}
  if(img&&!t.dead){t.img=img;t.ok=true;gmDraw()}
- else{if(img&&img.close)img.close();t.err=true;setTimeout(()=>{if(GM.tiles.get(t.k)===t)GM.tiles.delete(t.k)},navigator.onLine?6000:20000)}}
+ else{if(img&&img.close)img.close();t.err=true;setTimeout(()=>{if(GM.tiles.get(t.k)===t)GM.tiles.delete(t.k)},navigator.onLine?(t.z>=19?30000:6000):20000)}}
 function gmTile(L,z,x,y,d){const k=L+z+'/'+x+'/'+y;let t=GM.tiles.get(k);
  if(t){t.f=GM.fr;t.d=d||0;GM.tiles.delete(k);GM.tiles.set(k,t);return t}
  t={k,L,z,x,y,img:null,ok:false,f:GM.fr,d:d||0};GM.tiles.set(k,t);TQ.push(t);if(!TQ.w){TQ.w=1;Promise.resolve().then(()=>{TQ.w=0;tilePump()})}
@@ -582,24 +590,26 @@ function gmBack(c,L,zi,wx,ty,px,py,s){
  for(let i=0;i<4;i++){const p=GM.tiles.get(L+(zi+1)+'/'+(wx*2+(i&1))+'/'+(ty*2+(i>>1)));
   if(p&&p.ok&&!p.dead){c.drawImage(p.img,0,0,256,256,Math.floor(px+(i&1)*h),Math.floor(py+(i>>1)*h),Math.ceil(h)+1,Math.ceil(h)+1);any=true}}
  return any}
-try{addEventListener('online',()=>{GM.tiles.forEach((t,k)=>{if(t.err)GM.tiles.delete(k)});gmDraw()})}catch(e){}
+try{addEventListener('online',()=>{GM.tiles.forEach((t,k)=>{if(t.err)GM.tiles.delete(k)});gmDraw()});addEventListener('offline',()=>gmDraw())}catch(e){}
 function gmDraw(){if(!GM.on||GM.raf)return;GM.raf=requestAnimationFrame(gmRender)}
-function gmRender(){GM.raf=0;GM.fr++;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
+function gmRender(){GM.raf=0;GM.fr++;const EL=gmEff();const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
  c.setTransform(GM.dpr,0,0,GM.dpr,0,0);c.fillStyle='#0b0f17';c.fillRect(0,0,W,H);
- const z=GM.z,zi=Math.min(Math.round(z),TL[GM.layer].max),sc=Math.pow(2,z-zi),cxp=mx(GM.lon,z),cyp=my(GM.lat,z),R=GM.rot*Math.PI/180;
+ const z=GM.z,zi=Math.min(Math.round(z),TL[EL].max),sc=Math.pow(2,z-zi),cxp=mx(GM.lon,z),cyp=my(GM.lat,z),R=GM.rot*Math.PI/180;
  const cs=Math.cos(R),sn=Math.sin(R);
  // proyección: mundo(px a z) -> pantalla
  const P=(lat,lon)=>{const dx=mx(lon,z)-cxp,dy=my(lat,z)-cyp;return[W/2+dx*cs-dy*sn,H/2+dx*sn+dy*cs]};
  GM.P=P;
- if(GM.layer!=='off'){const s=256*sc,ox=mx(GM.lon,zi),oy=my(GM.lat,zi),r=Math.hypot(W,H)/2/s+1,n=Math.pow(2,zi);
+ if(EL!=='off'){const s=256*sc,ox=mx(GM.lon,zi),oy=my(GM.lat,zi),r=Math.hypot(W,H)/2/s+1,n=Math.pow(2,zi);
   const x0=Math.floor(ox/256-r),x1=Math.floor(ox/256+r),y0=Math.max(0,Math.floor(oy/256-r)),y1=Math.min(n-1,Math.floor(oy/256+r));
   c.save();c.translate(W/2,H/2);c.rotate(R);
-  for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++){const wx=((tx%n)+n)%n,dx=tx+.5-ox/256,dy=ty+.5-oy/256,t=gmTile(GM.layer,zi,wx,ty,dx*dx+dy*dy);
+  for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++){const wx=((tx%n)+n)%n,dx=tx+.5-ox/256,dy=ty+.5-oy/256,t=gmTile(EL,zi,wx,ty,dx*dx+dy*dy);
    const px=(tx*256-ox)*sc,py=(ty*256-oy)*sc;
    if(t.ok)c.drawImage(t.img,Math.floor(px),Math.floor(py),Math.ceil(s)+1,Math.ceil(s)+1);
-   else if(!gmBack(c,GM.layer,zi,wx,ty,px,py,s)){c.fillStyle='#141b27';c.fillRect(px,py,s,s)}}
+   else if(!gmBack(c,EL,zi,wx,ty,px,py,s)){c.fillStyle='#141b27';c.fillRect(px,py,s,s)}}
+  if(zi>0){const pn=n/2,py0=Math.max(0,y0>>1),py1=Math.min(pn-1,y1>>1),pox=ox/512,poy=oy/512;
+   for(let ty=py0;ty<=py1;ty++)for(let tx=(x0>>1);tx<=(x1>>1);tx++){const dx=tx+.5-pox,dy=ty+.5-poy;gmTile(EL,zi-1,((tx%pn)+pn)%pn,ty,1000+dx*dx+dy*dy)}}
   c.restore();
-  if(GM.layer!=='map'){ // nombres encima (el mapa Calles ya los trae)
+  if(!TL[EL].nl&&EL!=='map'){ // nombres encima (el mapa Calles ya los trae)
    for(const lk of LBS[GM.lab]||[]){const zl=Math.min(Math.round(z),LB[lk].max),sl=Math.pow(2,z-zl),sz=256*sl,nl=Math.pow(2,zl),ox2=mx(GM.lon,zl),oy2=my(GM.lat,zl),r2=Math.hypot(W,H)/2/sz+1;
     const a0=Math.floor(ox2/256-r2),a1=Math.floor(ox2/256+r2),b0=Math.max(0,Math.floor(oy2/256-r2)),b1=Math.min(nl-1,Math.floor(oy2/256+r2));
     c.save();c.translate(W/2,H/2);c.rotate(R);
@@ -608,8 +618,8 @@ function gmRender(){GM.raf=0;GM.fr++;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)retur
  }else{ // cuadrícula sin mapa
   c.strokeStyle='rgba(255,255,255,.07)';c.lineWidth=1;c.save();c.translate(W/2,H/2);c.rotate(R);const g=50,R2=Math.hypot(W,H);
   for(let i=-R2;i<R2;i+=g){c.beginPath();c.moveTo(i,-R2);c.lineTo(i,R2);c.moveTo(-R2,i);c.lineTo(R2,i);c.stroke()}c.restore()}
- if(GM.layer!=='off'&&!navigator.onLine){c.save();c.font='600 11px system-ui,sans-serif';c.textAlign='center';const tx='Sin internet · se muestra el mapa guardado (el recorrido sigue midiéndose)',tw=c.measureText(tx).width+16;c.fillStyle='rgba(0,0,0,.6)';c.fillRect(W/2-tw/2,8,tw,20);c.fillStyle='#fff';c.fillText(tx,W/2,22);c.restore()}
- if(GM.layer!=='off'){let A={sat:'Esri, Maxar, Earthstar Geographics y la comunidad GIS',map:'© OpenStreetMap contributors',s2:'EOxCloudless - cloudless.eox.at (Contains modified Copernicus Sentinel data 2016)'}[GM.layer];if(A&&GM.layer!=='map'&&GM.lab==='osm')A+=' · Nombres © CARTO, © OpenStreetMap';else if(A&&GM.layer!=='map'&&GM.lab==='esri')A+=' · Nombres: Esri';if(A){c.save();c.font='10px system-ui,sans-serif';c.textAlign='right';const tw=c.measureText(A).width+10;c.fillStyle='rgba(0,0,0,.55)';c.fillRect(W-tw-4,H-18,tw,14);c.fillStyle='#fff';c.fillText(A,W-9,H-8);c.restore()}}
+ if(EL!=='off'&&!navigator.onLine){c.save();c.font='600 11px system-ui,sans-serif';c.textAlign='center';const tx='Sin internet · se muestra el mapa guardado (el recorrido sigue midiéndose)',tw=c.measureText(tx).width+16;c.fillStyle='rgba(0,0,0,.6)';c.fillRect(W/2-tw/2,8,tw,20);c.fillStyle='#fff';c.fillText(tx,W/2,22);c.restore()}
+ if(EL!=='off'){let A={goog:'Imágenes y mapa © Google',gsat:'Imágenes © Google',gmap:'Mapa © Google',sat:'Esri, Maxar, Earthstar Geographics y la comunidad GIS',map:'© OpenStreetMap contributors',s2:'EOxCloudless - cloudless.eox.at (Contains modified Copernicus Sentinel data 2016)'}[EL];if(A&&!TL[EL].nl&&EL!=='map'&&GM.lab==='osm')A+=' · Nombres © CARTO, © OpenStreetMap';else if(A&&!TL[EL].nl&&EL!=='map'&&GM.lab==='esri')A+=' · Nombres: Esri';if(A){c.save();c.font='10px system-ui,sans-serif';c.textAlign='right';const tw=c.measureText(A).width+10;c.fillStyle='rgba(0,0,0,.55)';c.fillRect(W-tw-4,H-18,tw,14);c.fillStyle='#fff';c.fillText(A,W-9,H-8);c.restore()}}
  // recorrido
  const L=gmLine();
  if(L.length>1){c.lineJoin='round';c.lineCap='round';const runs=[],gp=[];let cu=[L[0]];
@@ -711,16 +721,16 @@ function gmInit(){const w=$('gmw');if(GM.cv&&w.contains(GM.cv))return;
  $('gmb').onclick=e=>{const b=e.target.closest('button');if(!b)return;const g=b.dataset.g,cx=GM.w/2,cy=GM.h/2;
   if(g==='in')gmZoomAt(cx,cy,Math.round(GM.z)+1);else if(g==='out')gmZoomAt(cx,cy,Math.round(GM.z)-1);else if(g==='fit')gmFit();
   else if(g==='loc'){if(FIX){GM.follow=true;GM.lat=FIX.lat;GM.lon=FIX.lon;if(GM.z<17)GM.z=18}else toast('Aún sin señal GPS')}
-  else if(g==='north')GM.rot=0;else if(g==='lay'){const k=Object.keys(TL);GM.layer=k[(k.indexOf(GM.layer)+1)%k.length];try{localStorage.setItem('dcvg_maplay',GM.layer)}catch(e){}}
+  else if(g==='north')GM.rot=0;else if(g==='lay'){const k=Object.keys(TL);GM.layer=k[(k.indexOf(GM.layer)+1)%k.length];try{localStorage.setItem('dcvg_maplay2',GM.layer)}catch(e){}}
   else if(g==='lab'){const k=Object.keys(LBS);GM.lab=k[(k.indexOf(GM.lab)+1)%k.length];try{localStorage.setItem('dcvg_maplab',GM.lab)}catch(e){}}
   else if(g==='key'){gmKey();return}else if(g==='dl'){gmDlS2();return}
   gmUi();gmDraw()};
- try{const l=localStorage.getItem('dcvg_maplay');if(l&&TL[l])GM.layer=l;const b=localStorage.getItem('dcvg_maplab');if(b&&LBS[b])GM.lab=b}catch(e){}
+ try{const l=localStorage.getItem('dcvg_maplay2');if(l&&TL[l])GM.layer=l;const b=localStorage.getItem('dcvg_maplab');if(b&&LBS[b])GM.lab=b}catch(e){}
  new ResizeObserver(gmSize).observe(w);gmSize();gmUi()}
 function gmTap(x,y){if(Math.hypot(x-(GM.w-46),y-64)<34){GM.rot=0;gmDraw();return}let b=null,bd=30;for(const h of GM.hit||[]){const pin=h[2].tipo==='inicio'||h[2].tipo==='fin',d=Math.hypot(h[0]-x,(h[1]-(pin?16:0))-y);if(d<bd){bd=d;b=h[2]}}
  const i=$('gmi');if(!b){i.classList.remove('on');return}const T=TIPOS[b.tipo]||{n:b.tipo,c:'#fff'};
  i.innerHTML='<b style="color:'+T.c+'">'+T.n+'</b> '+(b.pk!==''&&b.pk!=null?'· PK '+esc(pkTxt(b.pk)):'')+(b.desc?'<br>'+esc(b.desc):'')+((b.acon||b.acoff)?'<br>'+esc([b.acon,b.acoff].filter(Boolean).join(' - ').toUpperCase()):'')+(b.olre?'<br>OL/RE: '+esc(b.olre):'');i.classList.add('on')}
-function gmUi(){const g=$('gloc'),l=$('glay');if(g)g.classList.toggle('on',GM.follow);if(l)l.textContent=TL[GM.layer].n;const lb=$('glab');if(lb){lb.textContent=GM.layer==='map'?'Nombres: incl.':LBN[GM.lab];lb.classList.toggle('on',GM.layer!=='map'&&GM.lab!=='off')}}
+function gmUi(){const g=$('gloc'),l=$('glay');if(g)g.classList.toggle('on',GM.follow);if(l)l.textContent=TL[GM.layer].n;const lb=$('glab');if(lb){const inc=GM.layer==='map'||TL[GM.layer].nl;lb.textContent=inc?'Nombres: incl.':LBN[GM.lab];lb.classList.toggle('on',!inc&&GM.lab!=='off')}}
 function gmFix(){if(!GM.on)return;if(GM.follow&&FIX){GM.lat=FIX.lat;GM.lon=FIX.lon}gmDraw()}
 function rGps(){gmSync();trkClean();trkRefine(true);GM.on=true;document.body.classList.add('gpsv');gmInit();gmSize();if(!GM.fitted){GM.fitted=true;if(FIX&&!gmLine().length&&!gmPts().length){GM.lat=FIX.lat;GM.lon=FIX.lon;GM.z=18;GM.follow=true}else gmFit();gmUi()}gmDraw()}
 
