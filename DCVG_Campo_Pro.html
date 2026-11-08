@@ -545,7 +545,7 @@ const CK=new Set();let CKR=false;
 (async()=>{try{await new Promise(r=>setTimeout(r,2500));const c=await TCP;if(!c){CKR=true;return}const ks=await c.keys();for(const r of ks)CK.add(r.url);CKR=true;if(typeof gmDraw==='function')gmDraw();if(!navigator.onLine){const n=CK.size;setTimeout(()=>{try{toast(n?('Mapas guardados en el equipo: '+n+' piezas'):'SIN mapas guardados en este equipo. Con internet use Guardar zona.',n?3500:9000)}catch(e){}},1800)}}catch(e){CKR=true}})();
 async function tileGet(u,solo){try{const k=u.split('?')[0],c=await TCP;if(!c)return null;let r=await c.match(k);if(!r){if(!navigator.onLine)return null;r=await fetch(u,{mode:'cors'});if(!r.ok)return null;await c.put(k,r.clone());CK.add(k)}return solo?true:URL.createObjectURL(await r.blob())}catch(e){return null}}
 // pieza como imagen: se muestra apenas llega; guardarla en la caché ocurre aparte, sin hacer esperar
-async function tileBlob(u){try{const k=u.split('?')[0],c=await TCP;if(c){const r=await c.match(k);if(r)return await r.blob()}if(!navigator.onLine)return null;const t0=performance.now(),ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);let r;try{r=await fetch(u,{mode:'cors',signal:ac.signal})}finally{clearTimeout(to)}if(!r.ok)return null;if(c)c.put(k,r.clone()).then(()=>CK.add(k)).catch(()=>{});const bb=await r.blob();try{bb._ms=performance.now()-t0}catch(e){}return bb}catch(e){return null}}
+async function tileBlob(u){try{const k=u.split('?')[0],c=await TCP;if(c&&(!navigator.onLine||!CKR||CK.has(k))){const r=await c.match(k);if(r)return await r.blob()}if(!navigator.onLine)return null;const t0=performance.now(),ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);let r;try{r=await fetch(u,{mode:'cors',signal:ac.signal})}finally{clearTimeout(to)}if(!r.ok)return null;if(c)c.put(k,r.clone()).then(()=>CK.add(k)).catch(()=>{});const bb=await r.blob();try{bb._ms=performance.now()-t0}catch(e){}return bb}catch(e){return null}}
 async function gmDlHD(){if(!navigator.onLine){toast('Necesita internet para guardar la zona',4000);return}
  const c0=[GM.lat,GM.lon];
  const v=await dlgOpen({title:'Guardar zona en alta resolución',msg:'Se guarda el satélite de alta resolución alrededor del CENTRO del mapa que está viendo (primero lleve el mapa al sitio) para verlo sin internet, con nombres de calles. Radio en km (1 a 50; un recorrido de 20 km necesita radio 10 o más):',input:true,value:'2',mode:'decimal',ok:'Calcular'});
@@ -589,7 +589,7 @@ function hasT(L,z,x,y){try{if(!navigator.onLine&&!CKR)return true;return CK.has(
 function tileLocal(t){const Ld=TL[t.L];if(Ld&&Ld.g)return false;if(!navigator.onLine)return true;try{return CK.has((Ld||LB[t.L]).u(t.z,t.x,t.y).split('?')[0])}catch(e){return false}}
 function tilePump(){
  for(;;){
-  const canN=TA<20,canL=TLo<48;if(!canN&&!canL)break;
+  const canN=TA<32,canL=TLo<48;if(!canN&&!canL)break;
   let bt=null,bd=1e18,bl=false;
   for(let i=TQ.length-1;i>=0;i--){const t=TQ[i];
    if(t.dead){TQ.splice(i,1);t.inq=0;continue}
@@ -635,14 +635,17 @@ function gmBack(c,L,zi,wx,ty,px,py,s){
 try{addEventListener('online',()=>{GM.badUntil=0;GM.nf=0;GM.tiles.forEach((t,k)=>{if(t.err)GM.tiles.delete(k)});gmDraw()});addEventListener('offline',()=>gmDraw())}catch(e){}
 function gmDraw(){if(!GM.on||GM.raf)return;GM.raf=requestAnimationFrame(gmRender)}
 function gmBk(z){const l=TL[GM.layer];if(!l||!l.g||!navigator.onLine||gmOff()||(GM.ms||0)>1800)return;const zs=Math.min(18,Math.max(10,Math.round(z))),cx=Math.floor(mx(GM.lon,zs)/256),cy=Math.floor(my(GM.lat,zs)/256),k=zs+'/'+cx+'/'+cy;if(GM.bk===k)return;GM.bk=k;const ls=[];for(const zz of[zs,zs-2]){if(zz<10)continue;const d=zs-zz,n=Math.pow(2,zz),x=cx>>d,y=cy>>d;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const yy=y+j;if(yy<0||yy>=n)continue;ls.push([zz,((x+i)%n+n)%n,yy])}}
- setTimeout(async()=>{for(const q of ls){if(!navigator.onLine)break;try{const u=TL.sat.u(q[0],q[1],q[2]);if(CK.has(u.split('?')[0]))continue;await tileGet(u,true)}catch(e){}}},1200)}
+ setTimeout(async()=>{for(const q of ls){await espera();if(!navigator.onLine)break;try{const u=TL.sat.u(q[0],q[1],q[2]);if(CK.has(u.split('?')[0]))continue;await tileGet(u,true)}catch(e){}}},1200)}
 function gmKeepSw(){GM.kl=GM.kl||[];let cur=[];for(const t of GM.tiles.values()){if(t.ok&&!t.dead&&GM.fr-t.f<=1)cur.push(t)}
- if(cur.length>60){cur=cur.slice(cur.length-60)}cur.forEach(t=>{t.keep=1});GM.kl.push(cur);while(GM.kl.length>3){const o=GM.kl.shift();o.forEach(t=>{if(!GM.kl.some(l=>l.includes(t)))delete t.keep})}}
+ {const gg=t=>{const l=TL[t.L];return !!(l&&l.g)};cur=cur.filter(t=>!gg(t)).slice(-60).concat(cur.filter(gg).slice(-12))}cur.forEach(t=>{t.keep=1});GM.kl.push(cur);while(GM.kl.length>3){const o=GM.kl.shift();o.forEach(t=>{if(!GM.kl.some(l=>l.includes(t)))delete t.keep})}}
 let AUTO={la:0,lo:0,t:0,run:false,ns:0};
+['pointerdown','touchmove','wheel'].forEach(ev=>{try{window.addEventListener(ev,()=>{GM.tint=performance.now()},{passive:true,capture:true})}catch(e){}});
+const ocup=()=>TQ.length>0||TA>0||performance.now()-(GM.tint||0)<2500;
+const espera=async()=>{while(ocup()&&!document.hidden)await new Promise(r=>setTimeout(r,400))};
 async function autoMapa(){if(AUTO.run||!navigator.onLine||!FIX)return;const la=FIX.lat,lo=FIX.lon;if(AUTO.t&&Math.abs(la-AUTO.la)<0.0025&&Math.abs(lo-AUTO.lo)<0.0025)return;AUTO.run=true;AUTO.la=la;AUTO.lo=lo;AUTO.t=1;
  try{const ls=[],add=(L,z,r)=>{const n=Math.pow(2,z),sn=Math.sin(la*Math.PI/180),cx=Math.floor((lo+180)/360*n),cy=Math.floor((0.5-Math.log((1+sn)/(1-sn))/(4*Math.PI))*n);for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++){const y=cy+j;if(y<0||y>=n)continue;ls.push([L,z,((cx+i)%n+n)%n,y])}};
  for(let z=6;z<=19;z++)add('sat',z,z<=9?1:z===10?2:z===11?3:z<=13?4:z===14?3:z===15?2:z<=17?3:5);
- let i=0;const w=async()=>{while(i<ls.length){if(!navigator.onLine||document.hidden)return;const q=ls[i++];if(q[0]==='s2'&&AUTO.ns>=3)continue;try{const rt=await tileGet(TL[q[0]].u(q[1],q[2],q[3]),true);if(!rt&&q[0]==='s2')AUTO.ns=(AUTO.ns||0)+1}catch(e){}await new Promise(r=>setTimeout(r,40))}};
+ let i=0;const w=async()=>{while(i<ls.length){await espera();if(!navigator.onLine||document.hidden)return;const q=ls[i++];if(q[0]==='s2'&&AUTO.ns>=3)continue;try{const rt=await tileGet(TL[q[0]].u(q[1],q[2],q[3]),true);if(!rt&&q[0]==='s2')AUTO.ns=(AUTO.ns||0)+1}catch(e){}await new Promise(r=>setTimeout(r,40))}};
  await Promise.all([w(),w()])}catch(e){}
  AUTO.run=false}
 setTimeout(()=>setInterval(()=>{try{autoMapa()}catch(e){}},15000),45000);
@@ -1455,7 +1458,7 @@ async function foto(e){const fs=[].slice.call(e.target.files);e.target.value='';
 $('fCam').onchange=foto;$('fGal').onchange=foto;
 
 const SWV='dcvg-campo-v16-2026-11-06';
-const APP_BUILD='dcvg-2026-11-08-g';
+const APP_BUILD='dcvg-2026-11-08-h';
 async function updBarra(rr){const d=document.createElement('div');d.style.cssText='position:fixed;left:0;right:0;top:0;bottom:0;z-index:99999;background:rgba(0,0,0,.8);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font:600 17px system-ui,sans-serif';d.innerHTML='<div id="ub-t" style="margin-bottom:14px">Actualizando… 0%</div><div style="width:80%;max-width:360px;height:16px;background:#444;border-radius:8px;overflow:hidden"><div id="ub-b" style="height:100%;width:0;background:#2ecc71;transition:width .2s"></div></div>';document.body.appendChild(d);
  const set=p=>{p=Math.round(p);const b=document.getElementById('ub-b'),t=document.getElementById('ub-t');if(b)b.style.width=p+'%';if(t)t.textContent='Actualizando… '+p+'%'};
  try{set(15);const c=await caches.open(SWV);await c.put(location.pathname,rr.clone());await c.put(new URL('./',location.href).href,rr.clone());set(40);
