@@ -1458,7 +1458,7 @@ async function foto(e){const fs=[].slice.call(e.target.files);e.target.value='';
 $('fCam').onchange=foto;$('fGal').onchange=foto;
 
 const SWV='dcvg-campo-v16-2026-11-06';
-const APP_BUILD='dcvg-2026-11-08-h';
+const APP_BUILD='dcvg-2026-11-08-j';
 async function updBarra(rr){const d=document.createElement('div');d.style.cssText='position:fixed;left:0;right:0;top:0;bottom:0;z-index:99999;background:rgba(0,0,0,.8);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font:600 17px system-ui,sans-serif';d.innerHTML='<div id="ub-t" style="margin-bottom:14px">Actualizando… 0%</div><div style="width:80%;max-width:360px;height:16px;background:#444;border-radius:8px;overflow:hidden"><div id="ub-b" style="height:100%;width:0;background:#2ecc71;transition:width .2s"></div></div>';document.body.appendChild(d);
  const set=p=>{p=Math.round(p);const b=document.getElementById('ub-b'),t=document.getElementById('ub-t');if(b)b.style.width=p+'%';if(t)t.textContent='Actualizando… '+p+'%'};
  try{set(15);const c=await caches.open(SWV);await c.put(location.pathname,rr.clone());await c.put(new URL('./',location.href).href,rr.clone());set(40);
@@ -1487,7 +1487,9 @@ async function swCachePage(){try{if(!navigator.onLine)return;const c=await cache
 (function(){try{
 const st=document.createElement('style');st.textContent=
 '#pkb{display:none;cursor:pointer}'
-+'#pkb.on{display:inline-flex}'
++'#pkb.on{display:inline-flex;position:fixed;right:12px;bottom:calc(88px + env(safe-area-inset-bottom));z-index:25;min-height:54px;padding:0 20px;font-size:17px;font-weight:800;border-radius:99px;background:#ffc84a;color:#1a1300;border:2px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,.5);animation:pkg 2.4s infinite;touch-action:none;-webkit-user-select:none;user-select:none}'
++'body.gpsv #pkb.on{bottom:calc(190px + env(safe-area-inset-bottom))}'
++'@keyframes pkg{50%{box-shadow:0 4px 16px rgba(0,0,0,.5),0 0 0 9px rgba(255,200,74,.28)}}'
 +'#pk{position:fixed;inset:0;z-index:110;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px;touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:none;color:#4a5568;text-align:center;font-family:system-ui,sans-serif;padding:24px}'
 +'#pk.on{display:flex}'
 +'#pk .pd{width:10px;height:10px;border-radius:50%;background:#1f6f4f;animation:pkp 2s infinite}'
@@ -1499,7 +1501,7 @@ const st=document.createElement('style');st.textContent=
 +'#pk .pu i{position:absolute;left:0;right:0;bottom:0;height:0;background:#1d2a3a}'
 +'#pk .pu span{position:relative;pointer-events:none}';
 document.head.appendChild(st);
-const b=document.createElement('button');b.id='pkb';b.type='button';b.className='chip';b.textContent='🌙 Bolsillo';b.setAttribute('aria-label','Modo bolsillo');const gt=document.getElementById('gt');if(gt&&gt.parentNode){const w=document.createElement('div');w.style.cssText='display:flex;gap:5px;align-items:center;justify-content:flex-end';gt.parentNode.insertBefore(w,gt);w.appendChild(b);w.appendChild(gt)}else document.body.appendChild(b);
+const b=document.createElement('button');b.id='pkb';b.type='button';b.className='chip';b.textContent='🌙 Bolsillo';b.setAttribute('aria-label','Modo bolsillo');document.body.appendChild(b);
 const p=document.createElement('div');p.id='pk';
 p.innerHTML='<div class="pd"></div><div class="pt">Grabando recorrido</div><div class="pv" id="pk_v">0 m</div><div class="pg" id="pk_g">GPS…</div><div class="pu" id="pk_u"><i id="pk_f"></i><span>Mantenga presionado 2 s para desbloquear</span></div><div class="pg">Pantalla encendida y bloqueada al toque</div>';
 document.body.appendChild(p);
@@ -1518,7 +1520,15 @@ function exit(){if(!ON)return;ON=false;p.classList.remove('on');cancel();
  try{if(WL){const w=WL;WL=null;w.release()}}catch(e){}
  try{if(inspActiva())odoWL(true)}catch(e){}}
 function cancel(){clearTimeout(HT);HT=null;HP=null;const f=q('pk_f');f.style.transition='height .2s';f.style.height='0'}
-b.addEventListener('click',enter);
+b.addEventListener('click',()=>{if(b._mv){b._mv=0;return}enter()});
+let sv=null;try{sv=JSON.parse(localStorage.getItem('dcvg_pkpos')||'null')}catch(e){}
+const place=()=>{if(!sv||!b.offsetWidth)return;const mw=Math.max(0,innerWidth-b.offsetWidth),mh=Math.max(0,innerHeight-b.offsetHeight);b.style.left=Math.round(Math.max(0,Math.min(mw,sv.x*mw)))+'px';b.style.top=Math.round(Math.max(0,Math.min(mh,sv.y*mh)))+'px';b.style.right='auto';b.style.bottom='auto'};
+let dr=null;
+b.addEventListener('pointerdown',e=>{dr={id:e.pointerId,sx:e.clientX,sy:e.clientY,r:b.getBoundingClientRect(),m:false};try{b.setPointerCapture(e.pointerId)}catch(_){}});
+b.addEventListener('pointermove',e=>{if(!dr||e.pointerId!==dr.id)return;const dx=e.clientX-dr.sx,dy=e.clientY-dr.sy;if(!dr.m&&Math.hypot(dx,dy)<8)return;dr.m=true;const w=b.offsetWidth,h=b.offsetHeight;b.style.left=Math.max(0,Math.min(innerWidth-w,dr.r.left+dx))+'px';b.style.top=Math.max(0,Math.min(innerHeight-h,dr.r.top+dy))+'px';b.style.right='auto';b.style.bottom='auto';e.preventDefault()});
+const fin=e=>{if(!dr||e.pointerId!==dr.id)return;if(dr.m){b._mv=1;const mw=Math.max(1,innerWidth-b.offsetWidth),mh=Math.max(1,innerHeight-b.offsetHeight),r=b.getBoundingClientRect();sv={x:r.left/mw,y:r.top/mh};try{localStorage.setItem('dcvg_pkpos',JSON.stringify(sv))}catch(_){}setTimeout(()=>{b._mv=0},60)}dr=null};
+['pointerup','pointercancel'].forEach(n=>b.addEventListener(n,fin));
+window.addEventListener('resize',place);
 const u=q('pk_u');
 u.addEventListener('pointerdown',e=>{if(HP!=null)return;HP=e.pointerId;const f=q('pk_f');f.style.transition='height 2s linear';f.style.height='100%';HT=setTimeout(()=>{HT=null;HP=null;exit()},2000);e.preventDefault()});
 ['pointerup','pointercancel','pointerleave'].forEach(n=>u.addEventListener(n,e=>{if(e.pointerId===HP)cancel()}));
@@ -1526,6 +1536,6 @@ u.addEventListener('pointerdown',e=>{if(HP!=null)return;HP=e.pointerId;const f=q
 document.addEventListener('visibilitychange',()=>{if(ON&&!document.hidden){wl();paint()}});
 setInterval(()=>{try{
  if(ON){paint();if(!inspActiva()){exit();try{toast('Inspección finalizada: modo bolsillo desactivado',3500)}catch(e){}}}
- else b.classList.toggle('on',!!inspActiva())}catch(e){}},1000);
+ else b.classList.toggle('on',!!inspActiva());if(b.classList.contains('on')){if(!b._pl){place();b._pl=1}}else b._pl=0}catch(e){}},1000);
 }catch(e){console.error('modo bolsillo',e)}})();
 </script></body></html>
