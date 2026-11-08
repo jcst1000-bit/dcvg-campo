@@ -542,7 +542,7 @@ function gmLine(){const pp=gmPts(),o=E.odo,od=o?(o.est==='fin'?(+o.total||0):(+o
 const TCN='dcvg-tiles-v1';
 const TCP=(()=>{try{return caches.open(TCN)}catch(e){return Promise.resolve(null)}})();
 const CK=new Set();let CKR=false;
-(async()=>{try{const c=await TCP;if(!c){CKR=true;return}const ks=await c.keys();for(const r of ks)CK.add(r.url);CKR=true;if(typeof gmDraw==='function')gmDraw();if(!navigator.onLine){const n=CK.size;setTimeout(()=>{try{toast(n?('Mapas guardados en el equipo: '+n+' piezas'):'SIN mapas guardados en este equipo. Con internet use Guardar zona.',n?3500:9000)}catch(e){}},1800)}}catch(e){CKR=true}})();
+(async()=>{try{await new Promise(r=>setTimeout(r,2500));const c=await TCP;if(!c){CKR=true;return}const ks=await c.keys();for(const r of ks)CK.add(r.url);CKR=true;if(typeof gmDraw==='function')gmDraw();if(!navigator.onLine){const n=CK.size;setTimeout(()=>{try{toast(n?('Mapas guardados en el equipo: '+n+' piezas'):'SIN mapas guardados en este equipo. Con internet use Guardar zona.',n?3500:9000)}catch(e){}},1800)}}catch(e){CKR=true}})();
 async function tileGet(u,solo){try{const k=u.split('?')[0],c=await TCP;if(!c)return null;let r=await c.match(k);if(!r){if(!navigator.onLine)return null;r=await fetch(u,{mode:'cors'});if(!r.ok)return null;await c.put(k,r.clone());CK.add(k)}return solo?true:URL.createObjectURL(await r.blob())}catch(e){return null}}
 // pieza como imagen: se muestra apenas llega; guardarla en la caché ocurre aparte, sin hacer esperar
 async function tileBlob(u){try{const k=u.split('?')[0],c=await TCP;if(c){const r=await c.match(k);if(r)return await r.blob()}if(!navigator.onLine)return null;const t0=performance.now(),ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);let r;try{r=await fetch(u,{mode:'cors',signal:ac.signal})}finally{clearTimeout(to)}if(!r.ok)return null;if(c)c.put(k,r.clone()).then(()=>CK.add(k)).catch(()=>{});const bb=await r.blob();try{bb._ms=performance.now()-t0}catch(e){}return bb}catch(e){return null}}
@@ -641,10 +641,10 @@ async function autoMapa(){if(AUTO.run||!navigator.onLine||!FIX)return;const la=F
  try{const ls=[],add=(L,z,r)=>{const n=Math.pow(2,z),sn=Math.sin(la*Math.PI/180),cx=Math.floor((lo+180)/360*n),cy=Math.floor((0.5-Math.log((1+sn)/(1-sn))/(4*Math.PI))*n);for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++){const y=cy+j;if(y<0||y>=n)continue;ls.push([L,z,((cx+i)%n+n)%n,y])}};
  for(let z=8;z<=14;z++)add('s2',z,z<12?1:2);
  for(let z=12;z<=19;z++)add('sat',z,z<=15?1:(z<=17?3:5));
- let i=0;const w=async()=>{while(i<ls.length){if(!navigator.onLine)return;const q=ls[i++];try{await tileGet(TL[q[0]].u(q[1],q[2],q[3]),true)}catch(e){}}};
- await Promise.all([w(),w(),w()])}catch(e){}
+ let i=0;const w=async()=>{while(i<ls.length){if(!navigator.onLine||document.hidden)return;const q=ls[i++];try{await tileGet(TL[q[0]].u(q[1],q[2],q[3]),true)}catch(e){}await new Promise(r=>setTimeout(r,40))}};
+ await Promise.all([w(),w()])}catch(e){}
  AUTO.run=false}
-setInterval(()=>{try{autoMapa()}catch(e){}},15000);
+setTimeout(()=>setInterval(()=>{try{autoMapa()}catch(e){}},15000),45000);
 function gmRender(){GM.raf=0;GM.fr++;const ST=gmStack(),EL=ST[ST.length-1],OFF=gmOff(),CO=!navigator.onLine;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
   c.setTransform(GM.dpr,0,0,GM.dpr,0,0);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.fillStyle='#0b0f17';c.fillRect(0,0,W,H);
   const z=GM.z,zi=Math.min(Math.round(z+.25),TL[EL].max),sc=Math.pow(2,z-zi),cxp=mx(GM.lon,z),cyp=my(GM.lat,z),R=GM.rot*Math.PI/180;
@@ -1012,7 +1012,7 @@ function shareFotos(){const F=PRE_F;if(!F){toast('Preparando las fotos… toque 
  navigator.share({files:lot}).then(()=>{FI+=15;if(FI<F.length)toast('Enviadas. Toque otra vez para las '+(F.length-FI)+' fotos restantes',4500);else FI=0}).catch(e=>{if(e&&e.name!=='AbortError')toast('El equipo bloqueó Compartir ('+((e&&e.name)||'error')+')',5000)})}
 async function accionDatos(a){
  if(a==='inst')return instalar();if(a==='hideinst'){rDat();return}
- if(a==='upd'){if(!navigator.onLine){toast('Sin internet: no se puede buscar actualización. No se cambió nada.',5500);return}if(!await dlgConfirm('Se buscará la versión más nueva y la app se recargará. Sus datos no se borran. ¿Continuar?'))return;await flush();let rr;try{rr=await fetch(location.pathname,{cache:'no-store'});if(!rr.ok)throw 0}catch(e){toast('No hay conexión con el servidor. No se cambió nada.',5500);return}try{const c=await caches.open(SWV);await c.put(location.pathname,rr.clone());await c.put(new URL('./',location.href).href,rr.clone());const g=await navigator.serviceWorker.getRegistration();if(g)await g.update()}catch(e){}location.reload();return}
+ if(a==='upd'){if(!navigator.onLine){toast('Sin internet: no se puede buscar actualización. No se cambió nada.',5500);return}if(!await dlgConfirm('Se buscará la versión más nueva. Si hay una, la app se actualizará y se recargará. Sus datos no se borran. ¿Continuar?'))return;await flush();let rr,tx;try{rr=await fetch(location.pathname,{cache:'no-store'});if(!rr.ok)throw 0;tx=await rr.clone().text()}catch(e){toast('No hay conexión con el servidor. No se cambió nada.',5500);return}const mb=tx.match(/APP_BUILD='([^']*)'/);if(mb&&mb[1]===APP_BUILD){toast('Ya tiene la versión más nueva. No se cambió nada.',4500);return}await updBarra(rr);location.reload();return}
  if(a==='fotos'){if(navigator.share)return shareFotos();toast('Este equipo no permite compartir');return}
  if(a==='sh-txt'||a==='share'){if(!E.pts.length){toast('No hay puntos para exportar');return}if(navigator.share)return shareJson(a);if(a!=='share')a='down'}
  if(a==='share'||a==='down'){if(!E.pts.length){toast('No hay puntos para exportar');return}const g=await generar();$('xi').textContent=g.nom+' · '+(g.txt.length/1048576).toFixed(2)+' MB';
@@ -1454,6 +1454,14 @@ async function foto(e){const fs=[].slice.call(e.target.files);e.target.value='';
 $('fCam').onchange=foto;$('fGal').onchange=foto;
 
 const SWV='dcvg-campo-v16-2026-11-06';
+const APP_BUILD='dcvg-2026-11-08-b';
+async function updBarra(rr){const d=document.createElement('div');d.style.cssText='position:fixed;left:0;right:0;top:0;bottom:0;z-index:99999;background:rgba(0,0,0,.8);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font:600 17px system-ui,sans-serif';d.innerHTML='<div id="ub-t" style="margin-bottom:14px">Actualizando… 0%</div><div style="width:80%;max-width:360px;height:16px;background:#444;border-radius:8px;overflow:hidden"><div id="ub-b" style="height:100%;width:0;background:#2ecc71;transition:width .2s"></div></div>';document.body.appendChild(d);
+ const set=p=>{p=Math.round(p);const b=document.getElementById('ub-b'),t=document.getElementById('ub-t');if(b)b.style.width=p+'%';if(t)t.textContent='Actualizando… '+p+'%'};
+ try{set(15);const c=await caches.open(SWV);await c.put(location.pathname,rr.clone());await c.put(new URL('./',location.href).href,rr.clone());set(40);
+  const L=['manifest.webmanifest','icon-192.png','icon-512.png','icon-180.png'];for(let k=0;k<L.length;k++){try{const r2=await fetch(L[k],{cache:'reload'});if(r2.ok)await c.put(L[k],r2)}catch(e){}set(40+(k+1)/L.length*45)}
+  set(90);try{const g=await navigator.serviceWorker.getRegistration();if(g)await g.update()}catch(e){}
+  set(100)}catch(e){}
+ await new Promise(r=>setTimeout(r,500))}
 async function swCachePage(){try{if(!navigator.onLine)return;const c=await caches.open(SWV),rq=new Request(location.pathname,{cache:'reload'}),rs=await fetch(rq);if(rs&&rs.ok){await c.put(rq,rs.clone());await c.put(new URL('./',location.href).href,rs.clone())}}catch(e){}}
 /* ---------- arranque ---------- */
 (async function(){

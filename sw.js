@@ -30,7 +30,8 @@ self.addEventListener('fetch',e=>{
   if(r.method!=='GET'||new URL(r.url).origin!==location.origin)return;
   e.respondWith((async()=>{
     const forzar=(r.cache==='no-store'||r.cache==='reload'); // boton "buscar actualizacion": ir a la red
-    const m=await caches.match(r,{ignoreSearch:true})||(r.mode==='navigate'?await caches.match('./DCVG_Campo_Pro.html'):null);
+    const K=await caches.open(C); // solo se busca en la copia de la app, nunca en el mapa guardado (seria lentisimo)
+    const m=await K.match(r,{ignoreSearch:true})||(r.mode==='navigate'?await K.match('./DCVG_Campo_Pro.html'):null);
     if(m&&!forzar){
       // abre al instante con la copia guardada; la nueva se baja en segundo plano
       e.waitUntil(red(r).then(x=>guardar(e,r,x)).catch(()=>{}));
