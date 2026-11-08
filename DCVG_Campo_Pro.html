@@ -634,13 +634,15 @@ function gmBack(c,L,zi,wx,ty,px,py,s){
  return any}
 try{addEventListener('online',()=>{GM.badUntil=0;GM.nf=0;GM.tiles.forEach((t,k)=>{if(t.err)GM.tiles.delete(k)});gmDraw()});addEventListener('offline',()=>gmDraw())}catch(e){}
 function gmDraw(){if(!GM.on||GM.raf)return;GM.raf=requestAnimationFrame(gmRender)}
+function gmBk(z){const l=TL[GM.layer];if(!l||!l.g||!navigator.onLine||gmOff()||(GM.ms||0)>1800)return;const zs=Math.min(18,Math.max(10,Math.round(z))),cx=Math.floor(mx(GM.lon,zs)/256),cy=Math.floor(my(GM.lat,zs)/256),k=zs+'/'+cx+'/'+cy;if(GM.bk===k)return;GM.bk=k;const ls=[];for(const zz of[zs,zs-2]){if(zz<10)continue;const d=zs-zz,n=Math.pow(2,zz),x=cx>>d,y=cy>>d;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const yy=y+j;if(yy<0||yy>=n)continue;ls.push([zz,((x+i)%n+n)%n,yy])}}
+ setTimeout(async()=>{for(const q of ls){if(!navigator.onLine)break;try{const u=TL.sat.u(q[0],q[1],q[2]);if(CK.has(u.split('?')[0]))continue;await tileGet(u,true)}catch(e){}}},1200)}
 function gmRender(){GM.raf=0;GM.fr++;const ST=gmStack(),EL=ST[ST.length-1],OFF=gmOff(),CO=!navigator.onLine;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
   c.setTransform(GM.dpr,0,0,GM.dpr,0,0);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.fillStyle='#0b0f17';c.fillRect(0,0,W,H);
   const z=GM.z,zi=Math.min(Math.round(z+.25),TL[EL].max),sc=Math.pow(2,z-zi),cxp=mx(GM.lon,z),cyp=my(GM.lat,z),R=GM.rot*Math.PI/180;
   const cs=Math.cos(R),sn=Math.sin(R);
   // proyección: mundo(px a z) -> pantalla
   const P=(lat,lon)=>{const dx=mx(lon,z)-cxp,dy=my(lat,z)-cyp;return[W/2+dx*cs-dy*sn,H/2+dx*sn+dy*cs]};
-  GM.P=P;
+  GM.P=P;try{gmBk(z)}catch(e){}
   if(EL!=='off'){for(const L of ST){const zi=Math.min(Math.round(z+.25+gxb(L)),TL[L].max),sc=Math.pow(2,z-zi),first=L===ST[0],s=256*sc,ox=mx(GM.lon,zi),oy=my(GM.lat,zi),ac=Math.abs(cs),as=Math.abs(sn),hx=(ac*W/2+as*H/2)/s+.4,hy=(as*W/2+ac*H/2)/s+.4,n=Math.pow(2,zi);
    const x0=Math.floor(ox/256-hx),x1=Math.floor(ox/256+hx),y0=Math.max(0,Math.floor(oy/256-hy)),y1=Math.min(n-1,Math.floor(oy/256+hy));
    c.save();c.translate(W/2,H/2);c.rotate(R);
@@ -1447,7 +1449,7 @@ async function swCachePage(){try{if(!navigator.onLine)return;const c=await cache
 /* ---------- arranque ---------- */
 (async function(){
  const ok=await DB.open();let s=null;
- if(ok){try{s=await DB.get('kv','estado');(await DB.all('fotos')).forEach(f=>{PH[f[0]]=f[1]})}catch(e){}}
+ if(ok){try{s=await DB.get('kv','estado');DB.all('fotos').then(a=>{a.forEach(f=>{PH[f[0]]=f[1]});try{render()}catch(e){}}).catch(()=>{})}catch(e){}}
  vocSync();
  try{const l=JSON.parse(localStorage.getItem('dcvg_estado_v4')||'null');if(l&&l.pts&&(!s||(l._ts||0)>(s._ts||0)))s=l}catch(e){}
  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
