@@ -580,7 +580,7 @@ async function gmDlS2(){if(!navigator.onLine){toast('Necesita internet para desc
  let i=0,ok=0;const w=async()=>{while(i<tl.length){const t=tl[i++];if(await tileGet((t[3]?LB[t[3]]:TL.s2).u(t[0],t[1],t[2]),true))ok++;if(i%100===0)toast('Descargando mapa base… '+Math.round(i/tl.length*100)+'%',1500)}};
  await Promise.all([w(),w(),w(),w(),w(),w()]);toast('Listo: '+ok+' de '+tl.length+' piezas guardadas',6000)}
 const TQ=[];let TA=0;
-function gmStack(){const L=GM.layer,l=TL[L];if(!l||L==='off')return['off'];if(gmOff()&&(l.g||L==='sat'))return['s2','sat'];return[L]}
+function gmStack(){const L=GM.layer,l=TL[L];if(!l||L==='off')return['off'];if(gmOff()&&(l.g||L==='sat'||L==='s2'))return['s2','sat'];return[L]}
 function gmEff(){const s=gmStack();return s[s.length-1]}
 function gImg(u){return new Promise((ok,no)=>{const i=new Image(),to=setTimeout(()=>{try{i.src=''}catch(e){}no(new Error('t'))},10000),O=()=>{clearTimeout(to);ok(i)},N=e=>{clearTimeout(to);no(e)};i.decoding='async';i.onerror=N;if(i.decode){i.src=u;i.decode().then(O,N)}else{i.onload=O;i.src=u}})}
 function tileSched(){if(!TQ.w){TQ.w=1;Promise.resolve().then(()=>{TQ.w=0;tilePump()})}}
@@ -636,6 +636,15 @@ try{addEventListener('online',()=>{GM.badUntil=0;GM.nf=0;GM.tiles.forEach((t,k)=
 function gmDraw(){if(!GM.on||GM.raf)return;GM.raf=requestAnimationFrame(gmRender)}
 function gmBk(z){const l=TL[GM.layer];if(!l||!l.g||!navigator.onLine||gmOff()||(GM.ms||0)>1800)return;const zs=Math.min(18,Math.max(10,Math.round(z))),cx=Math.floor(mx(GM.lon,zs)/256),cy=Math.floor(my(GM.lat,zs)/256),k=zs+'/'+cx+'/'+cy;if(GM.bk===k)return;GM.bk=k;const ls=[];for(const zz of[zs,zs-2]){if(zz<10)continue;const d=zs-zz,n=Math.pow(2,zz),x=cx>>d,y=cy>>d;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const yy=y+j;if(yy<0||yy>=n)continue;ls.push([zz,((x+i)%n+n)%n,yy])}}
  setTimeout(async()=>{for(const q of ls){if(!navigator.onLine)break;try{const u=TL.sat.u(q[0],q[1],q[2]);if(CK.has(u.split('?')[0]))continue;await tileGet(u,true)}catch(e){}}},1200)}
+let AUTO={la:0,lo:0,t:0,run:false};
+async function autoMapa(){if(AUTO.run||!navigator.onLine||!FIX)return;const la=FIX.lat,lo=FIX.lon;if(AUTO.t&&Math.abs(la-AUTO.la)<0.0025&&Math.abs(lo-AUTO.lo)<0.0025)return;AUTO.run=true;AUTO.la=la;AUTO.lo=lo;AUTO.t=1;
+ try{const ls=[],add=(L,z,r)=>{const n=Math.pow(2,z),sn=Math.sin(la*Math.PI/180),cx=Math.floor((lo+180)/360*n),cy=Math.floor((0.5-Math.log((1+sn)/(1-sn))/(4*Math.PI))*n);for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++){const y=cy+j;if(y<0||y>=n)continue;ls.push([L,z,((cx+i)%n+n)%n,y])}};
+ for(let z=8;z<=14;z++)add('s2',z,z<12?1:2);
+ for(let z=12;z<=19;z++)add('sat',z,z<=15?1:(z<=17?3:5));
+ let i=0;const w=async()=>{while(i<ls.length){if(!navigator.onLine)return;const q=ls[i++];try{await tileGet(TL[q[0]].u(q[1],q[2],q[3]),true)}catch(e){}}};
+ await Promise.all([w(),w(),w()])}catch(e){}
+ AUTO.run=false}
+setInterval(()=>{try{autoMapa()}catch(e){}},15000);
 function gmRender(){GM.raf=0;GM.fr++;const ST=gmStack(),EL=ST[ST.length-1],OFF=gmOff(),CO=!navigator.onLine;const c=GM.cx,W=GM.w,H=GM.h;if(!c||!W)return;
   c.setTransform(GM.dpr,0,0,GM.dpr,0,0);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.fillStyle='#0b0f17';c.fillRect(0,0,W,H);
   const z=GM.z,zi=Math.min(Math.round(z+.25),TL[EL].max),sc=Math.pow(2,z-zi),cxp=mx(GM.lon,z),cyp=my(GM.lat,z),R=GM.rot*Math.PI/180;
@@ -765,7 +774,7 @@ function gmRotAt(px,py,dr){const dx=px-GM.w/2,dy=py-GM.h/2,W=(r)=>{const a=r*Mat
 function gmGesture(){const a=[...GM.ptr.values()];if(a.length===2){const dx=a[1].x-a[0].x,dy=a[1].y-a[0].y,d=Math.hypot(dx,dy),ang=Math.atan2(dy,dx)*180/Math.PI,mxp=(a[0].x+a[1].x)/2,myp=(a[0].y+a[1].y)/2;return{d,ang,x:mxp,y:myp}}return null}
 function gmInit(){const w=$('gmw');if(GM.cv&&w.contains(GM.cv))return;
  w.innerHTML='<canvas id="gmc"></canvas><div class="gmb" id="gmb"></div><div class="gmi" id="gmi"></div>';GM.cv=$('gmc');GM.cx=GM.cv.getContext('2d',{alpha:false});
- $('gmb').innerHTML='<button data-g="key" title="Llave Esri">🔑</button><button data-g="dlhd" title="Guardar mi zona en alta resolución para verla sin internet">⬇HD</button><button data-g="dl" title="Guardar Sentinel de todo el departamento sin internet">⬇</button><button data-g="in">+</button><button data-g="out">−</button><button data-g="fit" title="Ver todo">⤢</button><button data-g="loc" id="gloc" title="Seguirme">◎</button><button data-g="north" title="Norte arriba">N</button><button data-g="lab" id="glab" title="Nombres de calles, veredas y lugares"></button><button data-g="lay" id="glay"></button>';
+ $('gmb').innerHTML='<button data-g="key" title="Llave Esri">🔑</button><button data-g="dl" title="Guardar Sentinel de todo el departamento sin internet">⬇</button><button data-g="in">+</button><button data-g="out">−</button><button data-g="fit" title="Ver todo">⤢</button><button data-g="loc" id="gloc" title="Seguirme">◎</button><button data-g="north" title="Norte arriba">N</button><button data-g="lab" id="glab" title="Nombres de calles, veredas y lugares"></button><button data-g="lay" id="glay"></button>';
  const cv=GM.cv;cv.style.touchAction='none';
  cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);GM.ptr.set(e.pointerId,{x:e.offsetX,y:e.offsetY});GM.g0=gmGesture();GM.moved=0;GM.dn={x:e.offsetX,y:e.offsetY}});
  cv.addEventListener('pointermove',e=>{const o=GM.ptr.get(e.pointerId);if(!o)return;const nx=e.offsetX,ny=e.offsetY;
@@ -779,11 +788,11 @@ function gmInit(){const w=$('gmw');if(GM.cv&&w.contains(GM.cv))return;
  $('gmb').onclick=e=>{const b=e.target.closest('button');if(!b)return;const g=b.dataset.g,cx=GM.w/2,cy=GM.h/2;
   if(g==='in')gmZoomAnim(cx,cy,Math.round(GM.z)+1,240);else if(g==='out')gmZoomAnim(cx,cy,Math.round(GM.z)-1,240);else if(g==='fit')gmFit();
   else if(g==='loc'){if(FIX){GM.follow=true;GM.lat=FIX.lat;GM.lon=FIX.lon;if(GM.z<17)GM.z=18}else toast('Aún sin señal GPS')}
-  else if(g==='north')GM.rot=0;else if(g==='lay'){const k=Object.keys(TL);GM.layer=k[(k.indexOf(GM.layer)+1)%k.length];try{localStorage.setItem('dcvg_maplay2',GM.layer)}catch(e){}}
+  else if(g==='north')GM.rot=0;else if(g==='lay'){const k=Object.keys(TL);GM.layer=k[(k.indexOf(GM.layer)+1)%k.length];try{localStorage.setItem('dcvg_maplay3',GM.layer)}catch(e){}}
   else if(g==='lab'){const k=Object.keys(LBS);GM.lab=k[(k.indexOf(GM.lab)+1)%k.length];try{localStorage.setItem('dcvg_maplab',GM.lab)}catch(e){}}
   else if(g==='key'){gmKey();return}else if(g==='dl'){gmDlS2();return}else if(g==='dlhd'){gmDlHD();return}
   gmUi();gmDraw()};
- try{const l=localStorage.getItem('dcvg_maplay2');if(l&&TL[l])GM.layer=l;const b=localStorage.getItem('dcvg_maplab');if(b&&LBS[b])GM.lab=b}catch(e){}
+ try{const l=localStorage.getItem('dcvg_maplay3');if(l&&TL[l])GM.layer=l;const b=localStorage.getItem('dcvg_maplab');if(b&&LBS[b])GM.lab=b}catch(e){}
  new ResizeObserver(gmSize).observe(w);gmSize();gmUi()}
 function gmTap(x,y){if(Math.hypot(x-(GM.w-46),y-64)<34){GM.rot=0;gmDraw();return}let b=null,bd=30;for(const h of GM.hit||[]){const pin=h[2].tipo==='inicio'||h[2].tipo==='fin',d=Math.hypot(h[0]-x,(h[1]-(pin?16:0))-y);if(d<bd){bd=d;b=h[2]}}
  const i=$('gmi');if(!b){i.classList.remove('on');return}const T=TIPOS[b.tipo]||{n:b.tipo,c:'#fff'};
