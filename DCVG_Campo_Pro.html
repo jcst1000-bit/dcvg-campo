@@ -1000,12 +1000,12 @@ function rDat(){preparar();let us='';const L=revisar();
 async function generar(SF){const o=construirPlanilla(E,true);
  o.campo={formato:'dcvg_campo',version:4,build:'2026-10-31-c',exportado:new Date().toISOString(),odometro:odoResumen(),traza:E.mig||[],meta:E.meta,puntos:ordenar(E.pts).map(p=>Object.assign({},p,{fotos:p.fotos.map((id,i)=>{const d=(SF||!INC||!PH[id])?'':PH[id].data;return{id:id,archivo:nomFoto(p,i),mime:'image/jpeg',fecha:PH[id]?new Date(PH[id].t).toISOString():'',data:d.split(',')[1]||''}})}))};
  const txt=JSON.stringify(o,null,4),f=(E.meta.fecha||hoy()).split('/').reverse().join('-');return{txt:txt,nom:'DCVG_'+(slug(E.meta.empresa)||'campo')+'_'+f+(SF?'_SINFOTOS':'')+'.json'}}
-function bajar(g){const b=new Blob([g.txt],{type:'application/octet-stream'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=g.nom;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href)},2000)}
+function bajar(g){const b=new Blob([g.txt],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=g.nom;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href)},2000)}
 let PRE=null,PRE_F=null,FI=0;
 function dataFile(d,n){const b=atob(d.split(',')[1]),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new File([u],n,{type:'image/jpeg'})}
 async function preparar(){PRE=null;PRE_F=null;try{PRE=await generar();PRE_F=ordenar(E.pts).flatMap(p=>p.fotos.map((id,i)=>PH[id]?dataFile(PH[id].data,nomFoto(p,i)):null).filter(Boolean))}catch(e){PRE_F=PRE_F||[]}}
 function msgBox(t,h,lbl,fn){$('msgt').textContent=t;$('msgb').innerHTML=h;$('msga').textContent=lbl;$('msga').onclick=fn;$('msg').classList.add('on')}
-function noJson(g){msgBox('ESTE EQUIPO NO ENVÍA .JSON DIRECTO','Android bloquea el envío directo de archivos .json desde el navegador. Haga esto:<br>1. Toque <b>Guardar JSON</b> (queda en Descargas).<br>2. En WhatsApp abra el chat, toque el clip y elija <b>Documento</b>.<br>3. Seleccione el archivo <b>'+esc(g.nom)+'</b>.<br>Las fotos se envían con <b>Compartir fotos</b>.','Guardar JSON',()=>{bajar(g);toast('JSON guardado en Descargas',3500)})}
+function noJson(g){msgBox('ESTE EQUIPO NO ENVÍA .JSON DIRECTO','Android bloquea el envío directo de archivos .json desde el navegador. Haga esto:<br>1. Toque <b>Guardar JSON</b> (queda en Descargas).<br>2. Abra la app <b>Archivos</b> y entre a <b>Descargas</b>.<br>3. <b>MANTENGA PRESIONADO</b> el archivo <b>'+esc(g.nom)+'</b> (no lo toque una sola vez: se abre y muestra el código) y toque <b>Compartir</b>.<br>4. Elija WhatsApp, correo o Bluetooth.<br>Las fotos se envían con <b>Compartir fotos</b>.','Guardar JSON',()=>{bajar(g);toast('JSON guardado en Descargas. Para enviarlo: en Archivos MANTENGA PRESIONADO el archivo y toque Compartir (no lo abra)',8000)})}
 function shareJson(m){const g=PRE;if(!g){toast('Preparando el archivo… toque de nuevo en unos segundos',3500);preparar();return}
  const mk=(n,t)=>new File([g.txt],n,{type:t}),L=m==='sh-txt'?[mk(g.nom.replace(/\.json$/,'.txt'),'text/plain')]:[mk(g.nom,'application/json'),mk(g.nom,'text/plain')];
  const f=L.find(x=>!navigator.canShare||navigator.canShare({files:[x]}));
@@ -1020,7 +1020,7 @@ async function accionDatos(a){
  if(a==='fotos'){if(navigator.share)return shareFotos();toast('Este equipo no permite compartir');return}
  if(a==='sh-txt'||a==='share'){if(!E.pts.length){toast('No hay puntos para exportar');return}if(navigator.share)return shareJson(a);if(a!=='share')a='down'}
  if(a==='share'||a==='down'){if(!E.pts.length){toast('No hay puntos para exportar');return}const g=await generar();$('xi').textContent=g.nom+' · '+(g.txt.length/1048576).toFixed(2)+' MB';
-  if(a==='down'){bajar(g);toast('Archivo descargado');return}
+  if(a==='down'){bajar(g);toast('Archivo guardado en Descargas. Para enviarlo: en Archivos MANTENGA PRESIONADO el archivo y toque Compartir (no lo abra)',8000);return}
   for(const ty of['application/json','text/plain']){try{const f=new File([g.txt],g.nom,{type:ty});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:g.nom,text:'Inspección DCVG'});return}}catch(e){if(e&&e.name==='AbortError')return}}
   bajar(g);toast('Este equipo no puede compartir directo: se descargó el archivo, compártalo desde Archivos',4000)}
  if(a==='nueva')return nueva();
