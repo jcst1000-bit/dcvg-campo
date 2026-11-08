@@ -547,14 +547,14 @@ async function tileGet(u,solo){try{const k=u.split('?')[0],c=await TCP;if(!c)ret
 // pieza como imagen: se muestra apenas llega; guardarla en la caché ocurre aparte, sin hacer esperar
 async function tileBlob(u){try{const k=u.split('?')[0],c=await TCP;if(c){const r=await c.match(k);if(r)return await r.blob()}if(!navigator.onLine)return null;const t0=performance.now(),ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);let r;try{r=await fetch(u,{mode:'cors',signal:ac.signal})}finally{clearTimeout(to)}if(!r.ok)return null;if(c)c.put(k,r.clone()).then(()=>CK.add(k)).catch(()=>{});const bb=await r.blob();try{bb._ms=performance.now()-t0}catch(e){}return bb}catch(e){return null}}
 async function gmDlHD(){if(!navigator.onLine){toast('Necesita internet para guardar la zona',4000);return}
- const c0=FIX?[FIX.lat,FIX.lon]:[GM.lat,GM.lon];
- const v=await dlgOpen({title:'Guardar zona en alta resolución',msg:'Se guarda el satélite de alta resolución alrededor de '+(FIX?'su posición':'el centro del mapa')+' para verlo sin internet, con nombres de calles. Radio en km (1 a 8):',input:true,value:'2',mode:'decimal',ok:'Calcular'});
- if(v==null)return;let rk=parseFloat(String(v).replace(',','.'));if(!isFinite(rk))rk=2;rk=Math.max(1,Math.min(8,rk));
+ const c0=[GM.lat,GM.lon];
+ const v=await dlgOpen({title:'Guardar zona en alta resolución',msg:'Se guarda el satélite de alta resolución alrededor del CENTRO del mapa que está viendo (primero lleve el mapa al sitio) para verlo sin internet, con nombres de calles. Radio en km (1 a 50; un recorrido de 20 km necesita radio 10 o más):',input:true,value:'2',mode:'decimal',ok:'Calcular'});
+ if(v==null)return;let rk=parseFloat(String(v).replace(',','.'));if(!isFinite(rk))rk=2;rk=Math.max(1,Math.min(50,rk));
  const dl=rk/111.32,dn=rk/(111.32*Math.cos(c0[0]*Math.PI/180)),bb=[Math.max(-84,c0[0]-dl),c0[1]-dn,Math.min(84,c0[0]+dl),c0[1]+dn];
  const rg=z=>{const n=Math.pow(2,z),f=la=>{const s=Math.sin(la*Math.PI/180);return Math.floor((0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*n)};return[Math.floor((bb[1]+180)/360*n),Math.floor((bb[3]+180)/360*n),f(bb[2]),f(bb[0])]};
  const cn=zm=>{let t=0;for(let z=10;z<=zm;z++){const q=rg(z);t+=(q[1]-q[0]+1)*(q[3]-q[2]+1)}return t};
- let zm=19;while(zm>14&&cn(zm)>5000)zm--;
- const tl=[];for(let z=10;z<=zm;z++){const q=rg(z);for(let y=q[2];y<=q[3];y++)for(let x=q[0];x<=q[1];x++)tl.push([z,x,y,'sat'])}
+ let zm=19;while(zm>12&&cn(zm)>12000)zm--;
+ const tl=[];for(let z=8;z<=zm;z++){const q=rg(z);for(let y=q[2];y<=q[3];y++)for(let x=q[0];x<=q[1];x++)tl.push([z,x,y,'sat'])}
  const nb=tl.length;for(const lk of LBS[GM.lab]||[])for(let i=0;i<nb;i++)tl.push([tl[i][0],tl[i][1],tl[i][2],lk]);
  const mb=Math.round(nb*0.03+(tl.length-nb)*0.012);
  if(!await dlgConfirm('Se guardarán '+tl.length+' piezas (unos '+mb+' MB) del satélite de alta resolución, hasta el nivel de zoom '+zm+(zm<19?' (el máximo para ese radio)':' (el máximo detalle)')+'. Conviene hacerlo con Wi-Fi. ¿Continuar?'))return;
@@ -580,7 +580,7 @@ async function gmDlS2(){if(!navigator.onLine){toast('Necesita internet para desc
  let i=0,ok=0;const w=async()=>{while(i<tl.length){const t=tl[i++];if(await tileGet((t[3]?LB[t[3]]:TL.s2).u(t[0],t[1],t[2]),true))ok++;if(i%100===0)toast('Descargando mapa base… '+Math.round(i/tl.length*100)+'%',1500)}};
  await Promise.all([w(),w(),w(),w(),w(),w()]);toast('Listo: '+ok+' de '+tl.length+' piezas guardadas',6000)}
 const TQ=[];let TA=0;
-function gmStack(){const L=GM.layer,l=TL[L];if(!l||L==='off')return['off'];if(gmOff()&&(l.g||L==='sat'||L==='s2'))return['s2','sat'];return[L]}
+function gmStack(){const L=GM.layer,l=TL[L];if(!l||L==='off')return['off'];if(gmOff()&&(l.g||L==='sat'||L==='s2'))return['sat'];return[L]}
 function gmEff(){const s=gmStack();return s[s.length-1]}
 function gImg(u){return new Promise((ok,no)=>{const i=new Image(),to=setTimeout(()=>{try{i.src=''}catch(e){}no(new Error('t'))},10000),O=()=>{clearTimeout(to);ok(i)},N=e=>{clearTimeout(to);no(e)};i.decoding='async';i.onerror=N;if(i.decode){i.src=u;i.decode().then(O,N)}else{i.onload=O;i.src=u}})}
 function tileSched(){if(!TQ.w){TQ.w=1;Promise.resolve().then(()=>{TQ.w=0;tilePump()})}}
@@ -641,8 +641,7 @@ function gmKeepSw(){GM.kl=GM.kl||[];let cur=[];for(const t of GM.tiles.values())
 let AUTO={la:0,lo:0,t:0,run:false,ns:0};
 async function autoMapa(){if(AUTO.run||!navigator.onLine||!FIX)return;const la=FIX.lat,lo=FIX.lon;if(AUTO.t&&Math.abs(la-AUTO.la)<0.0025&&Math.abs(lo-AUTO.lo)<0.0025)return;AUTO.run=true;AUTO.la=la;AUTO.lo=lo;AUTO.t=1;
  try{const ls=[],add=(L,z,r)=>{const n=Math.pow(2,z),sn=Math.sin(la*Math.PI/180),cx=Math.floor((lo+180)/360*n),cy=Math.floor((0.5-Math.log((1+sn)/(1-sn))/(4*Math.PI))*n);for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++){const y=cy+j;if(y<0||y>=n)continue;ls.push([L,z,((cx+i)%n+n)%n,y])}};
- for(let z=8;z<=14;z++)add('s2',z,z<12?1:2);
- for(let z=12;z<=19;z++)add('sat',z,z<=15?1:(z<=17?3:5));
+ for(let z=6;z<=19;z++)add('sat',z,z<=9?1:z===10?2:z===11?3:z<=13?4:z===14?3:z===15?2:z<=17?3:5);
  let i=0;const w=async()=>{while(i<ls.length){if(!navigator.onLine||document.hidden)return;const q=ls[i++];if(q[0]==='s2'&&AUTO.ns>=3)continue;try{const rt=await tileGet(TL[q[0]].u(q[1],q[2],q[3]),true);if(!rt&&q[0]==='s2')AUTO.ns=(AUTO.ns||0)+1}catch(e){}await new Promise(r=>setTimeout(r,40))}};
  await Promise.all([w(),w()])}catch(e){}
  AUTO.run=false}
@@ -776,7 +775,7 @@ function gmRotAt(px,py,dr){const dx=px-GM.w/2,dy=py-GM.h/2,W=(r)=>{const a=r*Mat
 function gmGesture(){const a=[...GM.ptr.values()];if(a.length===2){const dx=a[1].x-a[0].x,dy=a[1].y-a[0].y,d=Math.hypot(dx,dy),ang=Math.atan2(dy,dx)*180/Math.PI,mxp=(a[0].x+a[1].x)/2,myp=(a[0].y+a[1].y)/2;return{d,ang,x:mxp,y:myp}}return null}
 function gmInit(){const w=$('gmw');if(GM.cv&&w.contains(GM.cv))return;
  w.innerHTML='<canvas id="gmc"></canvas><div class="gmb" id="gmb"></div><div class="gmi" id="gmi"></div>';GM.cv=$('gmc');GM.cx=GM.cv.getContext('2d',{alpha:false});
- $('gmb').innerHTML='<button data-g="key" title="Llave Esri">🔑</button><button data-g="dl" title="Guardar Sentinel de todo el departamento sin internet">⬇</button><button data-g="in">+</button><button data-g="out">−</button><button data-g="fit" title="Ver todo">⤢</button><button data-g="loc" id="gloc" title="Seguirme">◎</button><button data-g="north" title="Norte arriba">N</button><button data-g="lab" id="glab" title="Nombres de calles, veredas y lugares"></button><button data-g="lay" id="glay"></button>';
+ $('gmb').innerHTML='<button data-g="key" title="Llave Esri">🔑</button><button data-g="dlhd" title="Guardar la zona que está viendo para usarla sin internet">⬇ Zona</button><button data-g="in">+</button><button data-g="out">−</button><button data-g="fit" title="Ver todo">⤢</button><button data-g="loc" id="gloc" title="Seguirme">◎</button><button data-g="north" title="Norte arriba">N</button><button data-g="lab" id="glab" title="Nombres de calles, veredas y lugares"></button><button data-g="lay" id="glay"></button>';
  const cv=GM.cv;cv.style.touchAction='none';
  cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);GM.ptr.set(e.pointerId,{x:e.offsetX,y:e.offsetY});GM.g0=gmGesture();GM.moved=0;GM.dn={x:e.offsetX,y:e.offsetY}});
  cv.addEventListener('pointermove',e=>{const o=GM.ptr.get(e.pointerId);if(!o)return;const nx=e.offsetX,ny=e.offsetY;
@@ -1456,7 +1455,7 @@ async function foto(e){const fs=[].slice.call(e.target.files);e.target.value='';
 $('fCam').onchange=foto;$('fGal').onchange=foto;
 
 const SWV='dcvg-campo-v16-2026-11-06';
-const APP_BUILD='dcvg-2026-11-08-c';
+const APP_BUILD='dcvg-2026-11-08-f';
 async function updBarra(rr){const d=document.createElement('div');d.style.cssText='position:fixed;left:0;right:0;top:0;bottom:0;z-index:99999;background:rgba(0,0,0,.8);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font:600 17px system-ui,sans-serif';d.innerHTML='<div id="ub-t" style="margin-bottom:14px">Actualizando… 0%</div><div style="width:80%;max-width:360px;height:16px;background:#444;border-radius:8px;overflow:hidden"><div id="ub-b" style="height:100%;width:0;background:#2ecc71;transition:width .2s"></div></div>';document.body.appendChild(d);
  const set=p=>{p=Math.round(p);const b=document.getElementById('ub-b'),t=document.getElementById('ub-t');if(b)b.style.width=p+'%';if(t)t.textContent='Actualizando… '+p+'%'};
  try{set(15);const c=await caches.open(SWV);await c.put(location.pathname,rr.clone());await c.put(new URL('./',location.href).href,rr.clone());set(40);
