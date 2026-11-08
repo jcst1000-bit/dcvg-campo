@@ -541,8 +541,8 @@ function gmLine(){const pp=gmPts(),o=E.odo,od=o?(o.est==='fin'?(+o.total||0):(+o
  return t}
 const TCN='dcvg-tiles-v1';
 const TCP=(()=>{try{return caches.open(TCN)}catch(e){return Promise.resolve(null)}})();
-const CK=new Set();
-(async()=>{try{const c=await TCP;if(!c)return;const ks=await c.keys();for(const r of ks)CK.add(r.url);if(typeof gmDraw==='function')gmDraw()}catch(e){}})();
+const CK=new Set();let CKR=false;
+(async()=>{try{const c=await TCP;if(!c){CKR=true;return}const ks=await c.keys();for(const r of ks)CK.add(r.url);CKR=true;if(typeof gmDraw==='function')gmDraw();if(!navigator.onLine){const n=CK.size;setTimeout(()=>{try{toast(n?('Mapas guardados en el equipo: '+n+' piezas'):'SIN mapas guardados en este equipo. Con internet use Guardar zona.',n?3500:9000)}catch(e){}},1800)}}catch(e){CKR=true}})();
 async function tileGet(u,solo){try{const k=u.split('?')[0],c=await TCP;if(!c)return null;let r=await c.match(k);if(!r){if(!navigator.onLine)return null;r=await fetch(u,{mode:'cors'});if(!r.ok)return null;await c.put(k,r.clone());CK.add(k)}return solo?true:URL.createObjectURL(await r.blob())}catch(e){return null}}
 // pieza como imagen: se muestra apenas llega; guardarla en la caché ocurre aparte, sin hacer esperar
 async function tileBlob(u){try{const k=u.split('?')[0],c=await TCP;if(c){const r=await c.match(k);if(r)return await r.blob()}if(!navigator.onLine)return null;const t0=performance.now(),ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);let r;try{r=await fetch(u,{mode:'cors',signal:ac.signal})}finally{clearTimeout(to)}if(!r.ok)return null;if(c)c.put(k,r.clone()).then(()=>CK.add(k)).catch(()=>{});const bb=await r.blob();try{bb._ms=performance.now()-t0}catch(e){}return bb}catch(e){return null}}
@@ -585,8 +585,8 @@ function gmEff(){const s=gmStack();return s[s.length-1]}
 function gImg(u){return new Promise((ok,no)=>{const i=new Image(),to=setTimeout(()=>{try{i.src=''}catch(e){}no(new Error('t'))},10000),O=()=>{clearTimeout(to);ok(i)},N=e=>{clearTimeout(to);no(e)};i.decoding='async';i.onerror=N;if(i.decode){i.src=u;i.decode().then(O,N)}else{i.onload=O;i.src=u}})}
 function tileSched(){if(!TQ.w){TQ.w=1;Promise.resolve().then(()=>{TQ.w=0;tilePump()})}}
 let TLo=0;
-function hasT(L,z,x,y){try{return CK.has((TL[L]||LB[L]).u(z,x,y).split('?')[0])}catch(e){return false}}
-function tileLocal(t){const Ld=TL[t.L];if(Ld&&Ld.g)return false;try{return CK.has((Ld||LB[t.L]).u(t.z,t.x,t.y).split('?')[0])}catch(e){return false}}
+function hasT(L,z,x,y){try{if(!navigator.onLine&&!CKR)return true;return CK.has((TL[L]||LB[L]).u(z,x,y).split('?')[0])}catch(e){return false}}
+function tileLocal(t){const Ld=TL[t.L];if(Ld&&Ld.g)return false;if(!navigator.onLine)return true;try{return CK.has((Ld||LB[t.L]).u(t.z,t.x,t.y).split('?')[0])}catch(e){return false}}
 function tilePump(){
  for(;;){
   const canN=TA<20,canL=TLo<48;if(!canN&&!canL)break;
