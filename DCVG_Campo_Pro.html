@@ -268,7 +268,7 @@ function desdePlanilla(o){const g={};o.celdas.forEach(c=>{g[c.fila+','+c.col]=c.
  return{v:4,meta:meta,pts:pts}}
 //#CORE-END
 /* ===== TRAMOS: cada punto de potencial (ON y OFF) cierra un tramo y abre el siguiente ===== */
-let TSEL=0;
+let TSEL=0,RSEL=-1;
 (function(){const st=document.createElement('style');st.textContent='.trs{display:flex;gap:6px;overflow-x:auto;margin-bottom:8px}.trs button{flex:none;border:2px solid #9a9a9a;background:#1c1c1c;color:#fff;border-radius:12px;padding:8px 14px;font-weight:700;font-size:13px}.trs button.on{background:var(--ac);color:#000;border-color:var(--ac)}.trs select,.trsel{flex:1 1 auto;min-width:0;max-width:62vw;background:#fff;color:#000;border:2px solid #fff;border-radius:12px;padding:9px 10px;font-weight:700;font-size:13px}.gbar .trsel{flex:none}.gbar .btn.gb-tr{background:#2a2a2a!important;color:#fff!important;border:2px solid #9a9a9a!important}.gbar .btn.gb-tr.on{background:#fff!important;color:#000!important;border-color:#fff!important}';document.head.appendChild(st)})();
 function tramosDe(pts,meta){
  const P=ordenar(pts),ini=P.find(p=>p.tipo==='inicio');
@@ -298,6 +298,7 @@ function calcularG(pts,meta){
  out.forEach((r,i)=>{r.item=i+1});out.nota=notas.join(' ');out.multi=T.length;out.tramos=T;return out}
 function cierreMsg(d){if(!d||d.tipo!=='pot'||$n(d.on)==null||$n(d.off)==null||$n(d.pk)==null)return'';const t=tramosDe(E.pts,E.meta).find(x=>x.end&&x.end.id===d.id);return t?'Tramo '+t.n+' cerrado y guardado. Inicia el tramo '+(t.n+1)+' en PK 0':''}
 function trOpt(T,sel){return T.map((t,i)=>'<option value="'+i+'"'+(i===sel?' selected':'')+'>Tramo '+t.n+(t.k1!=null?' ('+fmt(t.k0)+'-'+fmt(t.k1)+' m)':' ('+fmt(t.k0)+' m en adelante)')+'</option>').join('')}
+function resSel(T){const n=T.length;return '<div class="trs"><button data-rtp="-1"'+(RSEL<=-1?' disabled style="opacity:.35"':'')+'>\u2190</button><select data-rts="1"><option value="-1"'+(RSEL<0?' selected':'')+'>Consolidado (todos los tramos)</option>'+trOpt(T,RSEL)+'</select><button data-rtp="1"'+(RSEL>=n-1?' disabled style="opacity:.35"':'')+'>\u2192</button></div>'}
 function trSel(){const T=tramosDe(E.pts,E.meta);if(T.length<2)return'';if(TSEL>=T.length)TSEL=0;
  return '<div class="trs"><button data-trp="-1"'+(TSEL<=0?' disabled style="opacity:.35"':'')+'>\u2190</button><select data-trs="1">'+trOpt(T,TSEL)+'</select><button data-trp="1"'+(TSEL>=T.length-1?' disabled style="opacity:.35"':'')+'>\u2192</button></div><div class="hint" style="margin:0 0 8px">Tramo '+T[TSEL].n+' de '+T.length+': PK real '+fmt(T[TSEL].k0)+(T[TSEL].k1!=null?' a '+fmt(T[TSEL].k1):' en adelante')+' m. En esta planilla el PK empieza en 0.</div>'}
 
@@ -848,6 +849,8 @@ $('v-gra').addEventListener('click',async e=>{
   if(v!=null){if(gg.multi){E.meta.tit_tr=E.meta.tit_tr||{};E.meta.tit_tr[(GRA==='dcvg'?'d':'l')+gg.t.n]=String(v).trim()}else E.meta[k]=String(v).trim();persist();graRedraw()}}});
 $('v-pla').addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.trs!=null){TSEL=+e.target.value;PZ=null;rPla()}});
 $('v-gra').addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.gts!=null){GTR=+e.target.value;rGra()}});
+$('v-res').addEventListener('click',e=>{const b=e.target.closest('[data-rtp]');if(!b)return;const n=tramosDe(E.pts,E.meta).length;RSEL=Math.max(-1,Math.min(n-1,RSEL+(+b.dataset.rtp)));rRes()});
+$('v-res').addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.rts!=null){RSEL=+e.target.value;rRes()}});
 /* tiempo real: si cambian los datos mientras se ve la grafica, se redibuja sola */
 setInterval(()=>{try{if(VIEW!=='gra'||GRA==='menu'||!E)return;if(graSig()!==GLAST)rGra()}catch(e){}},1000);
 
@@ -947,22 +950,23 @@ const slug=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').repl
 const nomFoto=(p,i)=>'PK'+pkTxt(p.pk).replace('+','_')+'_'+(slug(p.desc)||p.tipo)+'_'+(i+1)+'.jpg';
 let INC=false;
 function rRes(){
- const P=ordenar(E.pts),ini=P.find(p=>p.tipo==='inicio'),fin=P.slice().reverse().find(p=>p.tipo==='fin'),rows=calcularG(E.pts,E.meta);
+ const TT=tramosDe(E.pts,E.meta),mu=TT.length>1;if(!mu||RSEL>=TT.length)RSEL=-1;const tv=mu&&RSEL>=0?TT[RSEL]:null;
+ const P=ordenar(tv?tv.pts:E.pts),ini=P.find(p=>p.tipo==='inicio'),fin=P.slice().reverse().find(p=>p.tipo==='fin'),rows=tv?calcular(tv.pts,tv.meta):calcularG(E.pts,E.meta);
  const ks=P.map(p=>$n(p.pk)).filter(v=>v!=null);
  const k0=ini&&$n(ini.pk)!=null?$n(ini.pk):(ks.length?Math.min.apply(null,ks):null);
  const k1=fin&&$n(fin.pk)!=null?$n(fin.pk):(ks.length?Math.max.apply(null,ks):null);
  const tot=(k0!=null&&k1!=null)?k1-k0:null;
  const od=odoResumen(),dm=od&&od.distancia_total_m>0?od.distancia_total_m:null;
- let h='<div class="card hero"><div class="lb" style="font-size:12px;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Recorrido total'+(fin?'':' (provisional: falta FIN)')+'</div>';
+ let h=(mu?resSel(TT):'')+'<div class="card hero"><div class="lb" style="font-size:12px;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">'+(tv?'Recorrido del tramo '+tv.n:'Recorrido total')+(fin?'':' (provisional: falta FIN)')+'</div>';
  if(tot==null)h+='<div class="rs-big">\u2014</div><div class="hint">Todav\u00eda no hay PK para calcular el recorrido.</div>';
  else h+='<div class="rs-big">'+Math.round(tot)+'<small> m</small></div><div class="hint">'+(tot/1000).toFixed(3)+' km \u00b7 PK '+pkTxt(k0)+' a PK '+pkTxt(k1)+'</div>';
- if(dm!=null)h+='<div class="hint">Od\u00f3metro/GPS: '+Math.round(dm)+' m</div>';
+ if(dm!=null&&!tv)h+='<div class="hint">Od\u00f3metro/GPS: '+Math.round(dm)+' m</div>';
  h+='</div>';
  const pr=(n,p)=>{const a=p?$n(p.on):null,b=p?$n(p.off):null,v=x=>x==null?'\u2014':fmt(x),c=a!=null&&b!=null;return '<div class="rs-r"><span>'+n+'</span><span>'+v(a)+'</span><span>'+v(b)+'</span><span>'+(c?v(a-b):'\u2014')+'</span><span>'+(c?v(Math.abs(a-b)):'\u2014')+'</span></div>'};
  const tI=ini&&$n(ini.on)!=null&&$n(ini.off)!=null?Math.abs($n(ini.on)-$n(ini.off)):null,tF=fin&&$n(fin.on)!=null&&$n(fin.off)!=null?Math.abs($n(fin.on)-$n(fin.off)):null;
- h+='<div class="card"><h3>'+ic('bolt')+'Potencial inicial y final</h3><div class="rs-r rs-h"><span></span><span>ON</span><span>OFF</span><span>\u0394P</span><span>Total</span></div>'+pr('Inicio',ini)+pr('Fin',fin)
+ h+='<div class="card"><h3>'+ic('bolt')+'Potencial inicial y final'+(tv?' - tramo '+tv.n:'')+'</h3><div class="rs-r rs-h"><span></span><span>ON</span><span>OFF</span><span>\u0394P</span><span>Total</span></div>'+pr('Inicio',ini)+pr('Fin',fin)
   +'<div class="hint">\u0394P = ON \u2212 OFF. Total = valor absoluto de \u0394P (el que usa la planilla para P/RE).</div>'
-  +(tI!=null&&tF!=null?'<div class="hint"><b>Variaci\u00f3n del total (fin \u2212 inicio): '+(tF-tI>0?'+':'')+fmt(tF-tI)+'</b></div>':'<div class="hint">Falta ON/OFF en '+(tI==null?'INICIO':'FIN')+' para calcular la variaci\u00f3n.</div>')+'</div>';
+  +'</div>';
  const A=rows.filter(r=>r.p.tipo==='anom'),cl={CC:0,AC:0,AA:0},sv=[0,0,0,0];let sa=0,si=0;
  A.forEach(r=>{const a=acLet(r.p.acon),c=acLet(r.p.acoff);if(a&&c)cl[a===c?a+a:'AC']++;else sa++;if(r.pct==null)si++;else sv[r.pct<=15?0:r.pct<=35?1:r.pct<=60?2:3]++});
  const N=A.length,pc=n=>N?n/N*100:0;
@@ -984,7 +988,7 @@ function rRes(){
  h+='<div class="dsh"><div class="tt">PORCENTAJE DE INDICACIONES SEG\u00daN SU CARACTERIZACI\u00d3N</div><div class="g3">'+K3.map(k=>'<div>'+hd(k,false)+don(k,pc(cl[k]))+'</div>').join('')+'</div></div>';
  if(sa)h+='<div class="hint">'+sa+' anomal\u00eda(s) sin A/C ON y OFF completos: no se cuentan en ninguna caracterizaci\u00f3n.</div>';
  if(si)h+='<div class="hint">'+si+' anomal\u00eda(s) sin OL/RE o sin P/RE: no tienen % IR y no entran en ninguna severidad.</div>';
- if(rows.nota)h+='<div class="hint">'+esc(rows.nota)+'</div>';if(rows.multi)h+='<div class="hint">Inspecci\u00f3n en '+rows.multi+' tramos: el P/RE y el % IR de cada anomal\u00eda se calculan con los potenciales de su propio tramo.</div>';
+ if(rows.nota)h+='<div class="hint">'+esc(rows.nota)+'</div>';if(rows.multi&&!tv)h+='<div class="hint">Inspecci\u00f3n en '+rows.multi+' tramos: el P/RE y el % IR de cada anomal\u00eda se calculan con los potenciales de su propio tramo.</div>';
  h+='<div style="height:10px"></div><div class="card"><h3>'+ic('pin')+'Anomal\u00edas y coordenadas</h3>';
  if(!N)h+='<div class="hint">A\u00fan no hay anomal\u00edas registradas.</div>';
  A.forEach(r=>{const p=r.p,la=$n(p.lat),lo=$n(p.lon),si2=r.pct==null?-1:(r.pct<=15?0:r.pct<=35?1:r.pct<=60?2:3);
