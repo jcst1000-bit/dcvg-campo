@@ -225,8 +225,8 @@ function calcular(pts,meta){
   const ol=$n(p.olre);if(p.tipo==='anom'&&ol!=null&&r.pre)r.pct=ol/r.pre*100;
   const ur=!!meta.usa_res,rb=resAtPk($n(p.pk),meta),R1=ur?$n(pick(p.r1,rb.r1)):null,R2=ur?$n(pick(p.r2,rb.r2)):null,R3=ur?$n(pick(p.r3,rb.r3)):null,K=2*Math.PI*100;r.R=[R1,R2,R3];
   if(R1!=null){r.a1=K*1*R1}if(R2!=null){r.a2=K*2*R2}if(R3!=null){r.a3=K*3*R3}
-  if(R1!=null&&R2!=null&&R1>R2)r.l12=K*R1*R2/(R1-R2);
-  if(R2!=null&&R3!=null&&R2>R3)r.l23=K*R2*R3/(R2-R3);
+  if(R1!=null&&R2!=null&&R1!==R2)r.l12=K*R1*R2/Math.abs(R1-R2);
+  if(R2!=null&&R3!=null&&R2!==R3)r.l23=K*R2*R3/Math.abs(R2-R3);
   return r});out.nota=nota;return out}
 const acColor=(a,b)=>{const ok=v=>v==='A'||v==='C',x=(a||'').trim().toUpperCase()[0],y=(b||'').trim().toUpperCase()[0];if(!ok(x)&&!ok(y))return null;if(ok(x)&&ok(y)&&x!==y)return'#ff0000';return(ok(x)?x:y)==='A'?'#00aa00':'#00c3ca'};
 const irColor=v=>v<=15?'#4675bb':v<=35?'#60bb58':v<=60?'#ffff7f':'#ff0000';
@@ -269,7 +269,7 @@ function desdePlanilla(o){const g={};o.celdas.forEach(c=>{g[c.fila+','+c.col]=c.
 //#CORE-END
 /* ===== TRAMOS: cada punto de potencial (ON y OFF) cierra un tramo y abre el siguiente ===== */
 let TSEL=0;
-(function(){const st=document.createElement('style');st.textContent='.trs{display:flex;gap:6px;overflow-x:auto;margin-bottom:8px}.trs button{flex:none;border:2px solid #9a9a9a;background:#1c1c1c;color:#fff;border-radius:12px;padding:8px 14px;font-weight:700;font-size:13px}.trs button.on{background:var(--ac);color:#000;border-color:var(--ac)}';document.head.appendChild(st)})();
+(function(){const st=document.createElement('style');st.textContent='.trs{display:flex;gap:6px;overflow-x:auto;margin-bottom:8px}.trs button{flex:none;border:2px solid #9a9a9a;background:#1c1c1c;color:#fff;border-radius:12px;padding:8px 14px;font-weight:700;font-size:13px}.trs button.on{background:var(--ac);color:#000;border-color:var(--ac)}.gbar .btn.gb-tr{background:#2a2a2a!important;color:#fff!important;border:2px solid #9a9a9a!important}.gbar .btn.gb-tr.on{background:#fff!important;color:#000!important;border-color:#fff!important}';document.head.appendChild(st)})();
 function tramosDe(pts,meta){
  const P=ordenar(pts),ini=P.find(p=>p.tipo==='inicio');
  if(!ini)return[];
@@ -285,7 +285,7 @@ function tramosDe(pts,meta){
   const fin=b>=0?b:P.length;
   for(let i=a+1;i<fin;i++){const o=P[i];if(esB(o))continue;add(o,{pk:sh(o)})}
   if(e)add(e,{tipo:'fin',pk:sh(e),desc:e.tipo==='fin'?e.desc:'FIN'});
-  const rb=resAtPk(k0,meta),m2=Object.assign({},meta,{r1:rb.r1,r2:rb.r2,r3:rb.r3,res_tramos:(meta.res_tramos||[]).filter(t=>$n(t.pk)!=null&&$n(t.pk)>k0).map(t=>Object.assign({},t,{pk:fn($n(t.pk)-k0)}))});
+  const kf=e?($n(e.pk)||0):null,nn=T.length+1,tt=meta.tit_tr||{},b0=j===0?{r1:meta.r1,r2:meta.r2,r3:meta.r3}:{r1:s.r1||'',r2:s.r2||'',r3:s.r3||''},m2=Object.assign({},meta,{r1:b0.r1,r2:b0.r2,r3:b0.r3,titulo_dcvg:tt['d'+nn]!=null?tt['d'+nn]:(nn===1?meta.titulo_dcvg:''),titulo_log:tt['l'+nn]!=null?tt['l'+nn]:(nn===1?meta.titulo_log:''),res_tramos:(meta.res_tramos||[]).filter(t=>$n(t.pk)!=null&&$n(t.pk)>=k0&&(kf==null||$n(t.pk)<kf)).map(t=>Object.assign({},t,{pk:fn($n(t.pk)-k0)}))});
   T.push({n:T.length+1,pts:out,map:mp,meta:m2,k0:k0,k1:e?($n(e.pk)||0):null,abierto:!e,ini:s,end:e})});
  return T}
 /* igual que calcular(), pero cada anomalia se evalua con los potenciales de SU tramo */
@@ -711,7 +711,7 @@ ICONS.chart='<path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/>';
  +'@media(orientation:landscape){body.grav .tabs,body.grav .top,body.grav .ghint{display:none!important}body.grav #app{padding:calc(env(safe-area-inset-top) + 4px) calc(env(safe-area-inset-right) + 8px) 4px calc(env(safe-area-inset-left) + 8px)}body.grav .gbar{flex-wrap:nowrap;overflow-x:auto;margin-bottom:6px}body.grav .grc{overflow:hidden;height:calc(100vh - 62px - env(safe-area-inset-top) - env(safe-area-inset-bottom));height:calc(100dvh - 62px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}body.grav .grc svg{min-width:0!important;width:100%!important;height:100%!important}}';
  document.head.appendChild(st);
  const s=document.createElement('section');s.className='view';s.id='v-gra';const d=document.getElementById('v-dat');d.parentNode.insertBefore(s,d)})();
-let GRA='menu',GLAST='';
+let GRA='menu',GLAST='',GTR=null;
 const GRC=(function(){const c={oscuro:true,fmD:1.3,fmL:1,tq:9};try{Object.assign(c,JSON.parse(localStorage.getItem('dcvg_gra_cfg')||'{}'))}catch(e){}return c})();
 const graSave=()=>{try{localStorage.setItem('dcvg_gra_cfg',JSON.stringify(GRC))}catch(e){}};
 const _render1=render;
@@ -734,18 +734,21 @@ const gRgb=a=>'rgb('+Math.round(a[0])+','+Math.round(a[1])+','+Math.round(a[2])+
 const gRgba=h=>{const a=gHex(h);return 'rgba('+Math.round(a[0])+','+Math.round(a[1])+','+Math.round(a[2])+','+(+a[3].toFixed(3))+')'};
 const gf=v=>Math.round(v*10)/10;
 /* --- cuando se puede dibujar cada grafica --- */
+function graT(){const T=tramosDe(E.pts,E.meta);if(T.length<2)return{T:T,t:null,i:0,multi:false};let i=GTR==null?T.length-1:GTR;if(i>=T.length)i=T.length-1;if(i<0)i=0;return{T:T,t:T[i],i:i,multi:true}}
+function graTit(k){const g=graT(),f=k==='log'?'titulo_log':'titulo_dcvg';return String((g.multi?g.t.meta[f]:E.meta[f])||'').trim()}
 function graEstado(k){
+ if(k==='dcvg'&&graT().multi){const t=graT().t;if(!t.end)return{ok:false,msg:'El tramo '+t.n+' sigue abierto. La gr\u00e1fica DCVG de un tramo se genera cuando el tramo se cierra (al guardar el siguiente punto de potencial con ON y OFF, o el FIN), porque la severidad (% IR) se completa en ese momento.'};if(t.end.tipo==='fin'&&($n(t.end.on)==null||$n(t.end.off)==null))return{ok:false,msg:'Falta ON/OFF en el punto FIN. Sin \u00e9l no se calcula el % IR definitivo.'};return{ok:true}}
  if(k==='dcvg'){const P=ordenar(E.pts),fin=P.slice().reverse().find(p=>p.tipo==='fin');
   if(!fin)return{ok:false,msg:'La gr\u00e1fica DCVG se genera solo cuando finaliza la inspecci\u00f3n (falta el punto FIN), porque la severidad (% IR) se completa en ese momento.'};
   if($n(fin.on)==null||$n(fin.off)==null)return{ok:false,msg:'Falta ON/OFF en el punto FIN. Sin \u00e9l no se calcula el % IR definitivo.'};
   return{ok:true}}
  if(!E.meta.usa_res)return{ok:false,msg:'Para esta gr\u00e1fica active \u00abResistividad del suelo\u00bb en Info General y cargue R (1M), R (2M) y R (3M).'};
  return{ok:true}}
-function graSig(){try{return JSON.stringify(E.pts.map(p=>[p.pk,p.tipo,p.on,p.off,p.olre,p.acon,p.acoff,p.desc,p.r1,p.r2,p.r3]))+JSON.stringify([E.meta.usa_res,E.meta.r1,E.meta.r2,E.meta.r3,E.meta.res_tramos,E.meta.titulo_dcvg,E.meta.titulo_log])}catch(e){return''}}
+function graSig(){try{return JSON.stringify(E.pts.map(p=>[p.pk,p.tipo,p.on,p.off,p.olre,p.acon,p.acoff,p.desc,p.r1,p.r2,p.r3]))+JSON.stringify([E.meta.usa_res,E.meta.r1,E.meta.r2,E.meta.r3,E.meta.res_tramos,E.meta.titulo_dcvg,E.meta.titulo_log,E.meta.tit_tr])}catch(e){return''}}
 /* --- construye el SVG de la grafica --- */
 function graBuild(kind){
  const log=kind==='log',T=GRC.oscuro?GTEMA.oscuro:GTEMA.claro,LW=900,LH=540;
- const rows=calcularG(E.pts,E.meta).filter(r=>$n(r.p.pk)!=null);
+ const gt=graT(),rows=(gt.multi?calcular(gt.t.pts,gt.t.meta):calcular(E.pts,E.meta)).filter(r=>$n(r.p.pk)!=null);
  if(!rows.length)return{err:'Todav\u00eda no hay puntos con PK para graficar.'};
  const pks=rows.map(r=>$n(r.p.pk)),xMax=Math.max(1,Math.trunc(Math.max.apply(null,pks))),step=Math.ceil(xMax/5);
  const ticks=[];for(let i=0;i<xMax+step;i+=step)ticks.push(i);
@@ -762,7 +765,7 @@ function graBuild(kind){
   [['AA','D',50],['CC','^',110],['AC','o',90]].forEach(q=>g[q[0]].forEach(p=>{nPts++;marks+=gMk(q[1],X(p[0]),Y(p[1]),Math.sqrt(q[2]*GRC.fmD)*1.1,p[2])}));
  }else{
   GSER_LOG.forEach(sr=>rows.forEach(r=>{const v=r[sr[2]];if(v==null||!(v>0))return;nPts++;marks+=gMk('o',X($n(r.p.pk)),Y(v),Math.sqrt(40*GRC.fmL)*1.1,gRgba(sr[1]))}))}
- if(!nPts)return{err:log?'Todav\u00eda no hay valores de resistividad para graficar (faltan R 1M / 2M / 3M).':'No hay indicaciones con % IR y caracterizaci\u00f3n (A/C) para graficar.'};
+ if(!nPts)return{err:log?'Todav\u00eda no hay valores de resistividad para graficar (faltan R 1M / 2M / 3M).'+(gt.multi?' En cada tramo solo cuentan las resistividades de ese tramo.':''):'No hay indicaciones con % IR y caracterizaci\u00f3n (A/C) para graficar.'};
  let s='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+LW+' '+LH+'" font-family="Segoe UI,system-ui,Arial,sans-serif" style="display:block;width:100%;min-width:640px;height:auto">';
  s+='<defs>'+B.map((b,i)=>{const c0=gHex(b[5]),c1=gHex(b[6]),lo=gMix(c0,c1,.2);return '<linearGradient id="gb'+i+'" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="'+gRgb(lo)+'" stop-opacity="'+(+(lo[3]*.5).toFixed(3))+'"/><stop offset="1" stop-color="'+gRgb(c1)+'" stop-opacity="'+(+(c1[3]*.5).toFixed(3))+'"/></linearGradient>'}).join('')
   +'<clipPath id="gcl"><rect x="'+gf(x0)+'" y="'+gf(yt)+'" width="'+gf(x1-x0)+'" height="'+gf(yb-yt)+'"/></clipPath></defs>';
@@ -787,7 +790,7 @@ function graBuild(kind){
  s+='<text x="'+gf((x0+x1)/2)+'" y="'+gf(yb+44)+'" text-anchor="middle" font-size="13" font-weight="700" fill="'+T.txt+'">DISTANCIA (mts)</text>';
  s+='<text transform="translate(16,'+gf((yt+yb)/2)+') rotate(-90)" text-anchor="middle" font-size="13" font-weight="700" fill="'+T.txt+'">'+(log?'RESISTIVIDAD (\u03a9 cm)':'PORCENTAJE IR (%)')+'</text>';
  /* titulo (toque para editarlo) y linea de acento */
- const tt=String((log?E.meta.titulo_log:E.meta.titulo_dcvg)||'').trim();
+ const tt=graTit(kind);
  s+='<text data-gtt="1" style="cursor:pointer" x="'+LW/2+'" y="26" text-anchor="middle" dominant-baseline="central" font-size="20" font-weight="700" font-style="'+(tt?'normal':'italic')+'" fill="'+(tt?T.titulo:T.ph)+'">'+esc(tt||'[ Toque aqu\u00ed para agregar un t\u00edtulo ]')+'</text>';
  s+='<line x1="'+.06*LW+'" x2="'+.94*LW+'" y1="46" y2="46" stroke="'+T.acento+'" stroke-opacity="'+T.aglow+'" stroke-width="7" stroke-linecap="round"/><line x1="'+.06*LW+'" x2="'+.94*LW+'" y1="46" y2="46" stroke="'+T.acento+'" stroke-opacity=".95" stroke-width="2.2" stroke-linecap="round"/>';
  /* leyenda */
@@ -807,11 +810,12 @@ function rGra(){
  if(GRA==='menu'){
   const d=graEstado('dcvg'),l=graEstado('log');
   el.innerHTML='<div class="card"><h3>'+ic('chart')+'Gr\u00e1ficas</h3><div class="hint">Elija la gr\u00e1fica que quiere ver.</div></div>'
-   +'<button class="btn pri" data-g="dcvg">'+ic('res')+'Gr\u00e1fica DCVG</button><div class="hint" style="margin:6px 4px 16px">'+(d.ok?'Lista: inspecci\u00f3n finalizada.':'Disponible solo al finalizar la inspecci\u00f3n (falta el punto FIN).')+'</div>'
+   +'<button class="btn pri" data-g="dcvg">'+ic('res')+'Gr\u00e1fica DCVG</button><div class="hint" style="margin:6px 4px 16px">'+(graT().multi?'Una gr\u00e1fica por tramo: se habilita al cerrarse cada tramo.':(d.ok?'Lista: inspecci\u00f3n finalizada.':'Disponible solo al finalizar la inspecci\u00f3n (falta el punto FIN).'))+'</div>'
    +'<button class="btn pri" data-g="log">'+ic('res')+'Gr\u00e1fica Resistividades</button><div class="hint" style="margin:6px 4px 16px">'+(l.ok?'Se actualiza en tiempo real con cada dato que se carga.':'Active \u00abResistividad del suelo\u00bb en Info General.')+'</div>';
   GLAST='';return}
  const k=GRA,es=graEstado(k);
  let h='<div class="gbar"><button class="btn sm gb-b" data-g="menu">\u2190 Gr\u00e1ficas</button>';
+ const gtt=graT();if(gtt.multi)gtt.T.forEach((t,i)=>{h+='<button class="btn sm gb-tr'+(i===gtt.i?' on':'')+'" data-gtr="'+i+'">Tramo '+t.n+'</button>'});
  if(es.ok){h+='<button class="btn sm gb-m" data-gm="-1">\u2212 Marcador</button><button class="btn sm gb-m" data-gm="1">+ Marcador</button>';
   if(k==='dcvg')h+='<button class="btn sm gb-e" data-ge="-1">\u2212 Etiqueta</button><button class="btn sm gb-e" data-ge="1">+ Etiqueta</button>';
   h+='<button class="btn sm gb-t" data-gt="1">'+(GRC.oscuro?'\u2600 Tema claro':'\u263e Tema oscuro')+'</button><button class="btn sm gb-i" data-gi="1">Guardar imagen</button>'}
@@ -825,21 +829,22 @@ function graPng(){
  const img=new Image();
  img.onload=()=>{const cv=document.createElement('canvas');cv.width=1800;cv.height=1080;cv.getContext('2d').drawImage(img,0,0,1800,1080);
   cv.toBlob(async b=>{if(!b){toast('No se pudo crear la imagen');return}
-   const nom='Grafica_'+(GRA==='dcvg'?'DCVG':'Resistividades')+(slug(E.meta.proyecto)?'_'+slug(E.meta.proyecto):'')+'.png';
+   const nom='Grafica_'+(GRA==='dcvg'?'DCVG':'Resistividades')+(graT().multi?'_Tramo'+graT().t.n:'')+(slug(E.meta.proyecto)?'_'+slug(E.meta.proyecto):'')+'.png';
    try{const f=new File([b],nom,{type:'image/png'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:nom});return}}catch(e){if(e&&e.name==='AbortError')return}
    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=nom;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href)},2000)},'image/png')};
  img.onerror=()=>toast('No se pudo crear la imagen');
  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(c))}
 $('v-gra').addEventListener('click',async e=>{
- const b=e.target.closest('[data-g],[data-gm],[data-ge],[data-gt],[data-gi],[data-gtt]');if(!b)return;const d=b.dataset;
+ const b=e.target.closest('[data-g],[data-gm],[data-ge],[data-gt],[data-gi],[data-gtt],[data-gtr]');if(!b)return;const d=b.dataset;
+ if(d.gtr!=null){GTR=+d.gtr;rGra();return}
  if(d.g!=null){GRA=d.g;rGra();scrollTo(0,0);return}
  if(d.gm!=null){const f=+d.gm>0?1.25:.8,q=GRA==='dcvg'?'fmD':'fmL';GRC[q]=Math.max(.17,Math.min(32,GRC[q]*f));graSave();graRedraw();return}
  if(d.ge!=null){GRC.tq=Math.max(4,Math.min(20,GRC.tq+(+d.ge)));graSave();graRedraw();return}
  if(d.gt!=null){GRC.oscuro=!GRC.oscuro;graSave();rGra();return}
  if(d.gi!=null){graPng();return}
- if(d.gtt!=null){const k=GRA==='dcvg'?'titulo_dcvg':'titulo_log';
-  const v=await dlgOpen({title:'T\u00edtulo de la gr\u00e1fica',msg:'Escriba el t\u00edtulo (may\u00fasculas y min\u00fasculas):',input:true,value:E.meta[k]||'',ok:'Guardar'});
-  if(v!=null){E.meta[k]=String(v).trim();persist();graRedraw()}}});
+ if(d.gtt!=null){const gg=graT(),k=GRA==='dcvg'?'titulo_dcvg':'titulo_log';
+  const v=await dlgOpen({title:'T\u00edtulo de la gr\u00e1fica',msg:'Escriba el t\u00edtulo (may\u00fasculas y min\u00fasculas):',input:true,value:(gg.multi?gg.t.meta[k]:E.meta[k])||'',ok:'Guardar'});
+  if(v!=null){if(gg.multi){E.meta.tit_tr=E.meta.tit_tr||{};E.meta.tit_tr[(GRA==='dcvg'?'d':'l')+gg.t.n]=String(v).trim()}else E.meta[k]=String(v).trim();persist();graRedraw()}}});
 /* tiempo real: si cambian los datos mientras se ve la grafica, se redibuja sola */
 setInterval(()=>{try{if(VIEW!=='gra'||GRA==='menu'||!E)return;if(graSig()!==GLAST)rGra()}catch(e){}},1000);
 
